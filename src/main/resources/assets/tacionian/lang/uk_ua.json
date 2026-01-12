@@ -1,0 +1,38 @@
+{
+  "itemGroup.tacionian_tab": "Tacionian Energy",
+
+  "item.tacionian.energy_stabilizer": "Енерго-стабілізатор",
+  "item.tacionian.energy_cell": "Енергетична комірка",
+  "item.tacionian.basic_charger_item": "Портативний зарядник",
+  "item.tacionian.safe_charger_item": "Безпечний портативний зарядник",
+
+  "block.tacionian.basic_charger_block": "Зарядна станція",
+  "block.tacionian.safe_charger_block": "Безпечна зарядна станція",
+  "block.tacionian.stabilization_plate": "Плита стабілізації",
+  "block.tacionian.wireless_energy_interface": "Бездротовий інтерфейс",
+  "block.tacionian.energy_reservoir": "Резервуар енергії",
+
+  "tooltip.tacionian.energy_stabilizer.desc": "§7Використовується для запобігання перевантаженню ядра.\n§eПКМ (утримувати): §7Активне спалювання надлишку.\n§eShift + ПКМ: §7Зміна порогу стабілізації.",
+  "tooltip.tacionian.mode_info": "§bПоточний режим: %s",
+  "tooltip.tacionian.control_hint": "§8Натисніть Shift для налаштування",
+
+  "tooltip.tacionian.energy_cell.desc": "§7Переносне сховище для Tx-енергії.",
+  "tooltip.tacionian.energy_cell.use": "§8ПКМ: Ввібрати надлишок з ядра\n§8Shift+ПКМ: Віддати енергію ядру",
+
+  "tooltip.tacionian.active": "Статус: §aАктивно",
+  "tooltip.tacionian.inactive": "Статус: §cВимкнено",
+  "tooltip.tacionian.safe_mode": "§6[Режим безпеки 15%]",
+
+  "tooltip.tacionian.wireless_interface.desc": "§bРадіус: 10 блоків.\n§7Стабілізує гравців та передає енергію (RF) в сусідні блоки.",
+  "tooltip.tacionian.stabilization_plate.desc": "§aСтабілізує ядро, поки ви стоїте на ній.",
+  "tooltip.tacionian.basic_charger_block.desc": "§7Швидко заряджає внутрішнє ядро гравця.",
+  "tooltip.tacionian.safe_charger_block.desc": "§6Заряджає ядро, запобігаючи перевантаженню.",
+  "tooltip.tacionian.reservoir.desc": "§9Велике стаціонарне сховище енергії.",
+
+  "message.tacionian.activated": "§aПристрій активовано",
+  "message.tacionian.deactivated": "§cПристрій вимкнено",
+  "message.tacionian.safe_activated": "§6Безпечний режим активовано",
+  "message.tacionian.level_up": "§bВаше Тахіонне ядро досягло рівня %s!",
+  "message.tacionian.level_down": "§cРівень ядра знизився до %s через нестабільність!",
+  "message.tacionian.energy_drained_air": "§eСкинуто %s Tx енергії в атмосферу"
+}

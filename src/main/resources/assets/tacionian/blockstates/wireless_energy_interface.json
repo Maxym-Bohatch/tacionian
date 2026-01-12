@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "tacionian:block/wireless_energy_interface"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "pattern": ["ESE", "GWG", "EOE"],
+  "key": {
+    "E": { "item": "minecraft:ender_eye" },
+    "S": { "item": "minecraft:nether_star" },
+    "G": { "item": "minecraft:gold_block" },
+    "W": { "item": "tacionian:safe_charger_block" },
+    "O": { "item": "minecraft:observer" }
+  },
+  "result": { "item": "tacionian:wireless_energy_interface" }
+}

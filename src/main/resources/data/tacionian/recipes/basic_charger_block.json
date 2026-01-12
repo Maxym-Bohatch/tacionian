@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ICI",
+    "RMR",
+    "III"
+  ],
+  "key": {
+    "I": { "item": "minecraft:iron_ingot" },
+    "C": { "item": "tacionian:energy_cell" },
+    "R": { "item": "minecraft:redstone_block" },
+    "M": { "item": "minecraft:comparator" }
+  },
+  "result": { "item": "tacionian:basic_charger_block" }
+}

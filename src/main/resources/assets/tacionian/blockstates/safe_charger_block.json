@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "tacionian:block/safe_charger_block"
+    }
+  }
+}

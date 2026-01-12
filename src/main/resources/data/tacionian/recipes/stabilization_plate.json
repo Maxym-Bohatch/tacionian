@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "LIL",
+    "IPI",
+    "LIL"
+  ],
+  "key": {
+    "L": { "item": "minecraft:lapis_block" },
+    "I": { "item": "minecraft:iron_ingot" },
+    "P": { "item": "minecraft:repeater" }
+  },
+  "result": { "item": "tacionian:stabilization_plate" }
+}

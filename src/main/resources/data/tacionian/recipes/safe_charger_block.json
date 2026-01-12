@@ -1,0 +1,11 @@
+{
+  "pattern": ["QCQ", "CMC", "OIO"],
+  "key": {
+    "Q": { "item": "minecraft:quartz_block" },
+    "C": { "item": "tacionian:energy_cell" },
+    "M": { "item": "minecraft:comparator" },
+    "I": { "item": "minecraft:iron_block" },
+    "O": { "item": "minecraft:obsidian" }
+  },
+  "result": { "item": "tacionian:safe_charger_block" }
+}

@@ -1,0 +1,10 @@
+{
+  "pattern": ["NCN", "CBC", "CMC"],
+  "key": {
+    "N": { "item": "minecraft:netherite_ingot" },
+    "C": { "item": "tacionian:energy_cell" },
+    "B": { "item": "tacionian:safe_charger_block" },
+    "M": { "item": "minecraft:comparator" }
+  },
+  "result": { "item": "tacionian:safe_charger_item" }
+}

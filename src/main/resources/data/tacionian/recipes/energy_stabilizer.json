@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "LDL",
+    "OSO",
+    "LPL"
+  ],
+  "key": {
+    "L": { "item": "minecraft:lapis_block" },
+    "D": { "item": "minecraft:diamond" },
+    "S": { "item": "tacionian:stabilization_plate" },
+    "O": { "item": "minecraft:observer" },
+    "P": { "item": "minecraft:repeater" }
+  },
+  "result": { "item": "tacionian:energy_stabilizer" }
+}

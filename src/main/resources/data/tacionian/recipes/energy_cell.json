@@ -1,0 +1,10 @@
+{
+  "pattern": ["SGS", "GRG", " P "],
+  "key": {
+    "S": { "item": "minecraft:glass" },
+    "G": { "item": "minecraft:gold_ingot" },
+    "R": { "item": "minecraft:redstone" },
+    "P": { "item": "minecraft:repeater" }
+  },
+  "result": { "item": "tacionian:energy_cell" }
+}

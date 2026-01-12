@@ -1,0 +1,10 @@
+{
+  "pattern": ["G G", "CWC", "GMG"],
+  "key": {
+    "G": { "item": "minecraft:gold_ingot" },
+    "C": { "item": "tacionian:energy_cell" },
+    "W": { "item": "tacionian:basic_charger_block" },
+    "M": { "item": "minecraft:comparator" }
+  },
+  "result": { "item": "tacionian:basic_charger_item" }
+}

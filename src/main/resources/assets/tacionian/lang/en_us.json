@@ -1,0 +1,38 @@
+{
+  "itemGroup.tacionian_tab": "Tacionian Energy",
+
+  "item.tacionian.energy_stabilizer": "Energy Stabilizer",
+  "item.tacionian.energy_cell": "Energy Cell",
+  "item.tacionian.basic_charger_item": "Portable Charger",
+  "item.tacionian.safe_charger_item": "Safe Portable Charger",
+
+  "block.tacionian.basic_charger_block": "Charging Station",
+  "block.tacionian.safe_charger_block": "Safe Charging Station",
+  "block.tacionian.stabilization_plate": "Stabilization Plate",
+  "block.tacionian.wireless_energy_interface": "Wireless Interface",
+  "block.tacionian.energy_reservoir": "Energy Reservoir",
+
+  "tooltip.tacionian.energy_stabilizer.desc": "§7Prevents core overload.\n§eRMB (Hold): §7Active excess drain.\n§eShift + RMB: §7Change stabilization threshold.",
+  "tooltip.tacionian.mode_info": "§bCurrent Threshold: %s",
+  "tooltip.tacionian.control_hint": "§8Press Shift to configure",
+
+  "tooltip.tacionian.energy_cell.desc": "§7Portable storage for Tx-energy.",
+  "tooltip.tacionian.energy_cell.use": "§8RMB: Absorb core excess\n§8Shift+RMB: Feed the core",
+
+  "tooltip.tacionian.active": "Status: §aActive",
+  "tooltip.tacionian.inactive": "Status: §cInactive",
+  "tooltip.tacionian.safe_mode": "§6[15% Safety Mode]",
+
+  "tooltip.tacionian.wireless_interface.desc": "§bRange: 10 blocks.\n§7Stabilizes players and outputs RF to neighbors.",
+  "tooltip.tacionian.stabilization_plate.desc": "§aStabilizes core while standing on it.",
+  "tooltip.tacionian.basic_charger_block.desc": "§7Rapidly charges the player's core.",
+  "tooltip.tacionian.safe_charger_block.desc": "§6Charges core while avoiding overload.",
+  "tooltip.tacionian.reservoir.desc": "§9Large stationary energy storage.",
+
+  "message.tacionian.activated": "§aDevice activated",
+  "message.tacionian.deactivated": "§cDevice deactivated",
+  "message.tacionian.safe_activated": "§6Safe mode activated",
+  "message.tacionian.level_up": "§bYour Tacionian Core reached level %s!",
+  "message.tacionian.level_down": "§cCore level dropped to %s due to instability!",
+  "message.tacionian.energy_drained_air": "§eDrained %s Tx energy into the atmosphere"
+}

@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ICI",
+    "CMC",
+    "ICI"
+  ],
+  "key": {
+    "I": { "item": "minecraft:iron_block" },
+    "C": { "item": "tacionian:energy_cell" },
+    "M": { "item": "minecraft:comparator" }
+  },
+  "result": { "item": "tacionian:energy_reservoir" }
+}
