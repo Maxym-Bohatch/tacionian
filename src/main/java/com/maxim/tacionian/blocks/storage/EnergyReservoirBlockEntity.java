@@ -17,18 +17,40 @@ public class EnergyReservoirBlockEntity extends BlockEntity {
     public int receiveTacionEnergy(int amount, boolean simulate) {
         int space = MAX_CAPACITY - energy;
         int toAdd = Math.min(amount, space);
-        if (!simulate) { energy += toAdd; setChanged(); }
+        if (!simulate && toAdd > 0) {
+            energy += toAdd;
+            setChanged();
+        }
         return toAdd;
     }
 
     public int extractTacionEnergy(int amount, boolean simulate) {
         int toExtract = Math.min(amount, energy);
-        if (!simulate) { energy -= toExtract; setChanged(); }
+        if (!simulate && toExtract > 0) {
+            energy -= toExtract;
+            setChanged();
+        }
         return toExtract;
     }
 
+    public int getEnergy() { return energy; }
+    public int getMaxCapacity() { return MAX_CAPACITY; }
+
     @Override
-    public void load(CompoundTag nbt) { super.load(nbt); this.energy = nbt.getInt("StoredTacion"); }
+    public void load(CompoundTag nbt) {
+        super.load(nbt);
+        this.energy = nbt.getInt("StoredTacion");
+    }
+
     @Override
-    protected void saveAdditional(CompoundTag nbt) { super.saveAdditional(nbt); nbt.putInt("StoredTacion", energy); }
+    protected void saveAdditional(CompoundTag nbt) {
+        super.saveAdditional(nbt);
+        nbt.putInt("StoredTacion", energy);
+    }
+
+    // Потрібно для того, щоб при ламанні блоку дані могли зберегтися в предмет (опціонально)
+    @Override
+    public CompoundTag getUpdateTag() {
+        return saveWithoutMetadata();
+    }
 }
