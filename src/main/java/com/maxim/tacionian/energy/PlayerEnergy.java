@@ -37,9 +37,13 @@ public class PlayerEnergy {
         }
 
         // 2. Пасивна регенерація
-        if (!remoteNoDrain) {
+        if (!remoteNoDrain && player.tickCount % 20 == 0) {
             int regenMax = (level <= 5) ? (int)(getMaxEnergy() * 0.95f) : getMaxEnergy();
-            if (this.energy < regenMax) receiveEnergy(getRegenRate(), false);
+            if (this.energy < regenMax) {
+                receiveEnergy(getRegenRate(), false);
+                // Синхронізуємо після регенерації
+                this.sync(serverPlayer);
+            }
         }
 
         // 3. Логіка штрафів за перевантаження (> 100%)
