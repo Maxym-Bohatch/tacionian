@@ -99,9 +99,13 @@ public class EnergyStabilizerItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         int mode = stack.getOrCreateTag().getInt("Mode");
+
         tooltip.add(Component.translatable("tooltip.tacionian.energy_stabilizer.desc").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.literal("Режим: ").append(getModeName(mode)).withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.literal("Затисніть ПКМ для швидкого зливу").withStyle(ChatFormatting.YELLOW));
+
+        tooltip.add(Component.translatable("tooltip.tacionian.energy_stabilizer.mode")
+                .append(getModeName(mode)).withStyle(ChatFormatting.AQUA));
+
+        tooltip.add(Component.translatable("tooltip.tacionian.energy_stabilizer.use_info").withStyle(ChatFormatting.YELLOW));
     }
 
     @Override public int getUseDuration(ItemStack s) { return 72000; }
