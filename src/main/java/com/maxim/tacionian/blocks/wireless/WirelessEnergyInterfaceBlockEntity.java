@@ -50,7 +50,7 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
                     pEnergy.setRemoteStabilized(true);
 
                     if (pEnergy.getEnergyPercent() > threshold) {
-                        int txToTake = 20;
+                        int txToTake = 150;
                         int extractedTx = pEnergy.extractEnergyWithExp(txToTake, false, serverPlayer);
 
                         if (extractedTx > 0) {
