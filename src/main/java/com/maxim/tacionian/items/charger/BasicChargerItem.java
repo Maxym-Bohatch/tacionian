@@ -27,19 +27,28 @@ public class BasicChargerItem extends Item {
             boolean changed = false;
             for (ItemStack target : serverPlayer.getInventory().items) {
                 if (target.isEmpty() || target == stack) continue;
+
                 if (target.getCapability(ForgeCapabilities.ENERGY).isPresent()) {
+                    // Використовуємо масив для отримання результату з лямбда-виразу
+                    final boolean[] success = {false};
                     target.getCapability(ForgeCapabilities.ENERGY).ifPresent(cap -> {
                         int neededRF = cap.receiveEnergy(500, true);
                         if (neededRF > 0) {
-                            int txToTake = neededRF / 10;
+                            // Гарантуємо, що txToTake мінімум 1, щоб метод з досвідом спрацював
+                            int txToTake = Math.max(1, neededRF / 10);
                             int takenTx = pEnergy.extractEnergyWithExp(txToTake, false, serverPlayer);
-                            cap.receiveEnergy(takenTx * 10, false);
+
+                            if (takenTx > 0) {
+                                cap.receiveEnergy(takenTx * 10, false);
+                                success[0] = true;
+                            }
                         }
                     });
-                    changed = true;
+                    if (success[0]) changed = true;
                 }
             }
-            if (changed && level.getGameTime() % 10 == 0) pEnergy.sync(serverPlayer);
+            // Синхронізуємо частіше, щоб бачити прогрес досвіду
+            if (changed && level.getGameTime() % 5 == 0) pEnergy.sync(serverPlayer);
         });
     }
 

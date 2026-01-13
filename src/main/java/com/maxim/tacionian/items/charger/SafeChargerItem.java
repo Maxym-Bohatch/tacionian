@@ -35,7 +35,8 @@ public class SafeChargerItem extends Item {
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
         if (level.isClientSide || !(entity instanceof ServerPlayer serverPlayer) || !stack.getOrCreateTag().getBoolean("Active")) return;
 
-        if (level.getGameTime() % 20 == 0) {
+        // Зменшуємо інтервал до 10 тіків для більш плавного нарахування досвіду
+        if (level.getGameTime() % 10 == 0) {
             serverPlayer.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
                 int minEnergy = (int) (pEnergy.getMaxEnergy() * 0.15f);
                 int availableTx = pEnergy.getEnergy() - minEnergy;
@@ -47,16 +48,22 @@ public class SafeChargerItem extends Item {
                     if (target.isEmpty() || target == stack) continue;
 
                     if (target.getCapability(ForgeCapabilities.ENERGY).isPresent()) {
+                        final boolean[] success = {false};
                         target.getCapability(ForgeCapabilities.ENERGY).ifPresent(cap -> {
                             int maxRfToGive = Math.min(availableTx * 10, 1000);
                             int acceptedRf = cap.receiveEnergy(maxRfToGive, true);
                             if (acceptedRf > 0) {
+                                // Гарантуємо мінімум 1 Tx для активації логіки досвіду
                                 int txToExtract = Math.max(1, acceptedRf / 10);
                                 int extractedTx = pEnergy.extractEnergyWithExp(txToExtract, false, serverPlayer);
-                                cap.receiveEnergy(extractedTx * 10, false);
+
+                                if (extractedTx > 0) {
+                                    cap.receiveEnergy(extractedTx * 10, false);
+                                    success[0] = true;
+                                }
                             }
                         });
-                        changed = true;
+                        if (success[0]) changed = true;
                     }
                 }
                 if (changed) pEnergy.sync(serverPlayer);
