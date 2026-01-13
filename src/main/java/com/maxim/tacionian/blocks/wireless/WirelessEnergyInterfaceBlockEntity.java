@@ -32,7 +32,7 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, WirelessEnergyInterfaceBlockEntity be) {
-        if (level.isClientSide) return;
+        if (level.isClientSide || level.getGameTime() % 10 != 0) return;
 
         AABB area = new AABB(pos).inflate(10);
         List<Player> players = level.getEntitiesOfClass(Player.class, area);
@@ -45,24 +45,32 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
         };
 
         for (Player player : players) {
-            // Обов'язково перевіряємо на ServerPlayer для extractEnergyWithExp
             if (player instanceof ServerPlayer serverPlayer) {
                 serverPlayer.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
                     pEnergy.setRemoteStabilized(true);
 
-                    // Тепер getEnergyPercent() знову доступний!
                     if (pEnergy.getEnergyPercent() > threshold) {
                         int txToTake = 20;
-                        int extracted = pEnergy.extractEnergyWithExp(txToTake, false, serverPlayer);
+                        int extractedTx = pEnergy.extractEnergyWithExp(txToTake, false, serverPlayer);
 
-                        if (extracted > 0) {
+                        if (extractedTx > 0) {
+                            int remainingFE = extractedTx * 10;
+
+                            // Розподіляємо енергію між сусідами
                             for (Direction dir : Direction.values()) {
+                                if (remainingFE <= 0) break;
+
                                 BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
                                 if (neighbor != null) {
-                                    neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite())
-                                            .ifPresent(cap -> cap.receiveEnergy(extracted * 10, false));
+                                    final int toSend = remainingFE;
+                                    int accepted = neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite())
+                                            .map(cap -> cap.canReceive() ? cap.receiveEnergy(toSend, false) : 0)
+                                            .orElse(0);
+                                    remainingFE -= accepted;
                                 }
                             }
+                            // Обов'язкова синхронізація для HUD
+                            pEnergy.sync(serverPlayer);
                         }
                     }
                 });

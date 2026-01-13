@@ -16,31 +16,36 @@ import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.Nullable;
 
 public class WirelessEnergyInterfaceBlock extends BaseEntityBlock {
-    public WirelessEnergyInterfaceBlock(Properties props) { super(props); }
+    public WirelessEnergyInterfaceBlock(Properties props) {
+        super(props);
+    }
 
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
         if (!level.isClientSide) {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof WirelessEnergyInterfaceBlockEntity interfaceBe) {
-                // Викликаємо оновлений метод
                 interfaceBe.cycleMode(player);
             }
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
     }
 
-    @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
+    @Override
+    public RenderShape getRenderShape(BlockState state) {
+        return RenderShape.MODEL;
+    }
 
-    @Nullable @Override
+    @Nullable
+    @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        // Передаємо тип з реєстра, а не створюємо "голий" об'єкт
         return ModBlockEntities.WIRELESS_BE.get().create(pos, state);
     }
 
-    @Nullable @Override
+    @Nullable
+    @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        // Тікер працює тільки на сервері
+        // Тікер працює ТІЛЬКИ на сервері для обробки логіки енергії
         return level.isClientSide ? null : createTickerHelper(type, ModBlockEntities.WIRELESS_BE.get(),
                 WirelessEnergyInterfaceBlockEntity::tick);
     }
