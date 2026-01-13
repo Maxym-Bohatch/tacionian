@@ -35,7 +35,7 @@
   "mode.tacionian.unrestricted": "§4Unrestricted",
   "tooltip.tacionian.active": "§aACTIVE",
   "tooltip.tacionian.inactive": "§cINACTIVE",
-  "tooltip.tacionian.level": "Core Lvl"
+  "tooltip.tacionian.level": "Core Lvl",
 
   "item.tacionian.energy_cell": "Energy Cell",
   "block.tacionian.basic_charger_block": "Basic Charging Block",
