@@ -1,32 +1,39 @@
 {
-  "itemGroup.tacionian_tab": "Tachyon Energy",
+  "itemGroup.tacionian_tab": "Tacionian Tech",
 
-  "item.tacionian.energy_cell": "Tachyon Cell",
-  "item.tacionian.energy_stabilizer": "Core Stabilizer",
-  "item.tacionian.basic_charger_item": "Basic Charger",
-  "item.tacionian.safe_charger_item": "Smart Charger",
+  "item.tacionian.energy_stabilizer": "Portable Stabilizer",
+  "tooltip.tacionian.energy_stabilizer.desc": "§7Prevents damage from §bTx overload §7while in your inventory.",
 
-  "block.tacionian.wireless_energy_interface": "Wireless Energy Interface",
+  "item.tacionian.basic_charger_item": "Basic Tachyon Charger",
+  "tooltip.tacionian.basic_charger_item.desc": "§7Slowly charges items in your inventory by consuming your §bTx §7energy.",
+
+  "item.tacionian.safe_charger_item": "Safe Tachyon Charger",
+  "tooltip.tacionian.safe_charger_item.desc": "§7Smart charger. Stops working if your §bTx §7level drops below 15%.",
+
+  "block.tacionian.stabilization_plate": "Stabilization Plate",
+  "tooltip.tacionian.stabilization_plate.desc": "§7Creates a safety zone. Stabilizes your §bTx Core §7while you stand on it.",
+
   "block.tacionian.energy_reservoir": "Energy Reservoir",
-  "block.tacionian.basic_charger_block": "Charging Station",
+  "tooltip.tacionian.energy_reservoir.desc": "§7Right-click to store energy. Shift+Right-click to take it back.",
 
-  "tooltip.tacionian.energy_cell.desc": "§7Portable Tx energy storage.",
-  "tooltip.tacionian.energy_cell.charge": "§eCharge: %s / %s Tx",
-  "tooltip.tacionian.energy_cell.controls_1": "§8RMB: Extract 100 Tx from core",
-  "tooltip.tacionian.energy_cell.controls_2": "§8Shift+RMB: Feed 100 Tx to core",
+  "block.tacionian.wireless_energy_interface": "Wireless Interface",
+  "tooltip.tacionian.wireless_interface.desc": "§7Wirelessly extracts energy from nearby players to power adjacent machines.",
+  "tooltip.tacionian.wireless_interface.power": "§7Range: §e10 blocks",
 
-  "tooltip.tacionian.active": "Status: §aActive",
-  "tooltip.tacionian.inactive": "Status: §cInactive",
+  "block.tacionian.safe_charger_block": "Safe Charging Block",
+  "tooltip.tacionian.safe_charger_block.desc": "§7Stationary device that transfers player energy to FE machines.",
 
-  "tooltip.tacionian.wireless_interface.desc": "§bRange: 10 blocks.",
-  "tooltip.tacionian.wireless_interface.power": "§7Stabilizes players and extracts Tx to generate RF.",
+  "tooltip.tacionian.energy_cell.charge": "Core Charge: %s / %s Tx",
+  "tooltip.tacionian.energy_cell.controls_1": "§6[Shift] §7- Details",
+  "tooltip.tacionian.energy_cell.controls_2": "§6[RMB] §7- Cycle mode",
 
-  "message.tacionian.level_up": "§b[Core] §7Level up: §f%s!",
-  "message.tacionian.level_down": "§c[Core] §7Level dropped to §f%s due to instability!",
-  "message.tacionian.mode_switched": "§b[System] §7Mode set to: §f%s",
-
-  "mode.tacionian.safe": "Safe (75%)",
-  "mode.tacionian.balanced": "Balanced (40%)",
-  "mode.tacionian.performance": "Performance (15%)",
-  "mode.tacionian.unrestricted": "UNRESTRICTED (0%)"
+  "message.tacionian.level_up": "§b[Tacionian] §fCore level increased to: §6%s",
+  "message.tacionian.mode_switched": "Interface Mode: %s",
+  "mode.tacionian.safe": "§aSafe",
+  "mode.tacionian.balanced": "§eBalanced",
+  "mode.tacionian.performance": "§6Performance",
+  "mode.tacionian.unrestricted": "§4Unrestricted",
+  "tooltip.tacionian.active": "§aACTIVE",
+  "tooltip.tacionian.inactive": "§cINACTIVE",
+  "tooltip.tacionian.level": "Core Lvl"
 }

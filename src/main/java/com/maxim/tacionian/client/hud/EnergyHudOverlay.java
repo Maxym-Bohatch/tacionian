@@ -3,6 +3,7 @@ package com.maxim.tacionian.client.hud;
 import com.maxim.tacionian.energy.ClientPlayerEnergy;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 public class EnergyHudOverlay {
@@ -11,39 +12,43 @@ public class EnergyHudOverlay {
         if (mc.level == null || mc.player == null || mc.player.isSpectator()) return;
         if (!ClientPlayerEnergy.hasData()) return;
 
-        int x = 15;
-        int y = height / 2 - 40;
-        int barWidth = 90;
-        int barHeight = 6;
+        // Позиція зверху зліва
+        int x = 10;
+        int y = 10;
+        int barWidth = 100;
+        int barHeight = 4;
 
-        // Малюємо фон підкладки
-        graphics.fill(x - 5, y - 15, x + barWidth + 5, y + 45, 0x99000000);
+        // Фон підкладки (трохи компактніший)
+        graphics.fill(x - 4, y - 4, x + barWidth + 20, y + 42, 0x88000000);
 
-        // Текст рівня
-        graphics.drawString(mc.font, "Core Lvl: " + ClientPlayerEnergy.getLevel(), x, y - 10, 0xFFFFFF, true);
+        // Текст рівня (використовуємо переклад)
+        String levelText = Component.translatable("tooltip.tacionian.level").getString() + ": " + ClientPlayerEnergy.getLevel();
+        graphics.drawString(mc.font, levelText, x, y, 0xFFFFFF, true);
 
         // Логіка кольору бару
-        int color = 0xFF00A0FF; // Синій за замовчуванням
+        int color = 0xFF00A0FF; // Синій (за замовчуванням)
         if (ClientPlayerEnergy.isStabilized() || ClientPlayerEnergy.isRemoteStabilized()) {
-            color = 0xFF00FF00; // Зелений (стабільно)
-        } else if (ClientPlayerEnergy.isOverloaded() || ClientPlayerEnergy.isCriticalLow()) {
-            color = 0xFFFF0000; // Червоний (небезпека)
+            color = 0xFF44FF44; // Зелений (стабільно)
+        } else if (ClientPlayerEnergy.isOverloaded() || ClientPlayerEnergy.getRatio() < 0.1f) {
+            color = 0xFFFF4444; // Червоний (небезпека)
         }
 
         // Рендер бару енергії
         float ratio = ClientPlayerEnergy.getRatio();
         int filledWidth = (int) (barWidth * ratio);
 
-        graphics.fill(x - 1, y - 1, x + barWidth + 1, y + barHeight + 1, 0xFF000000); // Рамка
-        graphics.fill(x, y, x + filledWidth, y + barHeight, color); // Заповнення
+        // Рамка та заповнення енергії
+        graphics.fill(x, y + 12, x + barWidth, y + 12 + barHeight, 0xFF222222); // Фон бару
+        graphics.fill(x, y + 12, x + filledWidth, y + 12 + barHeight, color); // Прогрес
 
-        // Текст Tx
-        graphics.drawString(mc.font, ClientPlayerEnergy.getEnergy() + " / " + ClientPlayerEnergy.getMaxEnergy() + " Tx", x, y + 10, 0xAAAAAA, false);
+        // Текст енергії Tx
+        String energyText = ClientPlayerEnergy.getEnergy() + " Tx";
+        graphics.drawString(mc.font, energyText, x, y + 20, 0xCCCCCC, false);
 
-        // Бар досвіду (маленький під низом)
-        int xpY = y + 25;
+        // Бар досвіду (дуже тонкий під текстом Tx)
+        int xpY = y + 32;
         float expRatio = (float) ClientPlayerEnergy.getExperience() / ClientPlayerEnergy.getRequiredExp();
-        graphics.fill(x, xpY, x + barWidth, xpY + 2, 0xFF222222);
-        graphics.fill(x, xpY, x + (int)(barWidth * expRatio), xpY + 2, 0xFFFFFF00);
+        graphics.fill(x, xpY, x + barWidth, xpY + 1, 0xFF333333);
+        graphics.fill(x, xpY, x + (int)(barWidth * expRatio), xpY + 1, 0xFFFFD700);
     };
 }

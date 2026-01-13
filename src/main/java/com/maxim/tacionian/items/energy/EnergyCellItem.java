@@ -4,6 +4,7 @@ import com.maxim.tacionian.energy.PlayerEnergyProvider;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
@@ -21,29 +22,28 @@ public class EnergyCellItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        if (level.isClientSide) return InteractionResultHolder.success(stack);
+        if (!(player instanceof ServerPlayer serverPlayer)) return InteractionResultHolder.success(stack);
 
-        player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
+        serverPlayer.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
             CompoundTag nbt = stack.getOrCreateTag();
             int stored = nbt.getInt("energy");
-            int amount = 100; // Фіксовано
+            int amount = 100;
 
-            if (player.isShiftKeyDown()) {
-                // Віддати ядру (Shift+ПКМ)
+            if (serverPlayer.isShiftKeyDown()) {
                 int toGive = Math.min(Math.min(stored, amount), pEnergy.getMaxEnergy() - pEnergy.getEnergy());
                 if (toGive > 0) {
                     pEnergy.receiveEnergy(toGive, false);
                     nbt.putInt("energy", stored - toGive);
                 }
             } else {
-                // Забрати з ядра (ПКМ)
                 int spaceInCell = 3000 - stored;
                 int toTake = Math.min(Math.min(pEnergy.getEnergy(), amount), spaceInCell);
                 if (toTake > 0) {
-                    pEnergy.extractEnergyPure(toTake, false); // Без досвіду
+                    pEnergy.extractEnergyPure(toTake, false);
                     nbt.putInt("energy", stored + toTake);
                 }
             }
+            pEnergy.sync(serverPlayer);
         });
         return InteractionResultHolder.success(stack);
     }
