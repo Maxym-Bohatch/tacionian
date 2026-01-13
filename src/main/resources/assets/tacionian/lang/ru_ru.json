@@ -36,4 +36,8 @@
   "tooltip.tacionian.active": "§aАКТИВНО",
   "tooltip.tacionian.inactive": "§cНЕАКТИВНО",
   "tooltip.tacionian.level": "Уровень ядра"
+
+  "item.tacionian.energy_cell": "Энергетическая ячейка",
+  "block.tacionian.basic_charger_block": "Базовый зарядный блок",
+  "tooltip.tacionian.basic_charger_block.desc": "§7Стационарное устройство, передающее энергию игрока к механизмам. Работает медленнее продвинутых версий."
 }
