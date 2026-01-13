@@ -23,6 +23,7 @@ public class WirelessEnergyInterfaceBlock extends BaseEntityBlock {
         if (!level.isClientSide) {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof WirelessEnergyInterfaceBlockEntity interfaceBe) {
+                // Викликаємо оновлений метод
                 interfaceBe.cycleMode(player);
             }
         }
@@ -33,12 +34,14 @@ public class WirelessEnergyInterfaceBlock extends BaseEntityBlock {
 
     @Nullable @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new WirelessEnergyInterfaceBlockEntity(pos, state);
+        // Передаємо тип з реєстра, а не створюємо "голий" об'єкт
+        return ModBlockEntities.WIRELESS_BE.get().create(pos, state);
     }
 
     @Nullable @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        if (level.isClientSide) return null;
-        return createTickerHelper(type, ModBlockEntities.WIRELESS_BE.get(), WirelessEnergyInterfaceBlockEntity::tick);
+        // Тікер працює тільки на сервері
+        return level.isClientSide ? null : createTickerHelper(type, ModBlockEntities.WIRELESS_BE.get(),
+                WirelessEnergyInterfaceBlockEntity::tick);
     }
 }

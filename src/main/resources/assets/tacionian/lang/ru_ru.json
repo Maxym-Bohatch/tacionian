@@ -1,38 +1,32 @@
 {
-  "itemGroup.tacionian_tab": "Tacionian Energy",
+  "itemGroup.tacionian_tab": "Тахионная Энергия",
 
-  "item.tacionian.energy_stabilizer": "Энерго-стабилизатор",
-  "item.tacionian.energy_cell": "Энергетическая ячейка",
-  "item.tacionian.basic_charger_item": "Портативный зарядник",
-  "item.tacionian.safe_charger_item": "Безопасный портативный зарядник",
+  "item.tacionian.energy_cell": "Тахионная Ячейка",
+  "item.tacionian.energy_stabilizer": "Стабилизатор Ядра",
+  "item.tacionian.basic_charger_item": "Базовый зарядник",
+  "item.tacionian.safe_charger_item": "Умный зарядник",
 
-  "block.tacionian.basic_charger_block": "Зарядная станция",
-  "block.tacionian.safe_charger_block": "Безопасная зарядная станция",
-  "block.tacionian.stabilization_plate": "Плита стабилизации",
   "block.tacionian.wireless_energy_interface": "Беспроводной интерфейс",
-  "block.tacionian.energy_reservoir": "Резервуар энергии",
+  "block.tacionian.energy_reservoir": "Энергетический резервуар",
+  "block.tacionian.basic_charger_block": "Зарядная станция",
 
-  "tooltip.tacionian.energy_stabilizer.desc": "§7Используется для предотвращения перегрузки ядра.\n§eПКМ (удерживать): §7Активное сжигание излишка.\n§eShift + ПКМ: §7Смена порога стабилизации.",
-  "tooltip.tacionian.mode_info": "§bТекущий порог: %s",
-  "tooltip.tacionian.control_hint": "§8Нажмите Shift для настройки",
+  "tooltip.tacionian.energy_cell.desc": "§7Портативное хранилище Tx-энергии.",
+  "tooltip.tacionian.energy_cell.charge": "§eЗапас: %s / %s Tx",
+  "tooltip.tacionian.energy_cell.controls_1": "§8ПКМ: Забрать 100 Tx из ядра",
+  "tooltip.tacionian.energy_cell.controls_2": "§8Shift+ПКМ: Отдать 100 Tx ядру",
 
-  "tooltip.tacionian.energy_cell.desc": "§7Переносное хранилище для Tx-энергии.",
-  "tooltip.tacionian.energy_cell.use": "§8ПКМ: Забрать излишек из ядра\n§8Shift+ПКМ: Подпитать ядро",
-
-  "tooltip.tacionian.active": "Статус: §aАктивен",
+  "tooltip.tacionian.active": "Статус: §aАктивирован",
   "tooltip.tacionian.inactive": "Статус: §cВыключен",
-  "tooltip.tacionian.safe_mode": "§6[Режим безопасности 15%]",
 
-  "tooltip.tacionian.wireless_interface.desc": "§bРадиус: 10 блоков.\n§7Стабилизирует игроков и передает RF в соседние блоки.",
-  "tooltip.tacionian.stabilization_plate.desc": "§aСтабилизирует ядро, пока вы стоите на ней.",
-  "tooltip.tacionian.basic_charger_block.desc": "§7Быстро заряжает внутреннее ядро игрока.",
-  "tooltip.tacionian.safe_charger_block.desc": "§6Заряжает ядро, предотвращая перегрузку.",
-  "tooltip.tacionian.reservoir.desc": "§9Крупное стационарное хранилище энергии.",
+  "tooltip.tacionian.wireless_interface.desc": "§bРадиус: 10 блоков.",
+  "tooltip.tacionian.wireless_interface.power": "§7Стабилизирует игроков и выкачивает Tx для генерации RF.",
 
-  "message.tacionian.activated": "§aУстройство активировано",
-  "message.tacionian.deactivated": "§cУстройство выключено",
-  "message.tacionian.safe_activated": "§6Безопасный режим активирован",
-  "message.tacionian.level_up": "§bВаше Тахионное ядро достигло уровня %s!",
-  "message.tacionian.level_down": "§cУровень ядра снизился до %s из-за нестабильности!",
-  "message.tacionian.energy_drained_air": "§eСброшено %s Tx энергии в атмосферу"
+  "message.tacionian.level_up": "§b[Ядро] §7Уровень повышен до §f%s!",
+  "message.tacionian.level_down": "§c[Ядро] §7Уровень снизился до §f%s из-за нестабильности!",
+  "message.tacionian.mode_switched": "§b[Система] §7Режим установлен: §f%s",
+
+  "mode.tacionian.safe": "Безопасный (75%)",
+  "mode.tacionian.balanced": "Сбалансированный (40%)",
+  "mode.tacionian.performance": "Производительный (15%)",
+  "mode.tacionian.unrestricted": "БЕЗ ПРЕДОХРАНИТЕЛЯ (0%)"
 }

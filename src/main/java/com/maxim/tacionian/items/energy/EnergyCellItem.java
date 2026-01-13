@@ -1,6 +1,7 @@
 package com.maxim.tacionian.items.energy;
 
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
+import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -15,11 +16,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 public class EnergyCellItem extends Item {
-    private final int capacity = 3000;
-
-    public EnergyCellItem(Properties props) {
-        super(props.stacksTo(1));
-    }
+    public EnergyCellItem(Properties props) { super(props.stacksTo(1)); }
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
@@ -28,21 +25,23 @@ public class EnergyCellItem extends Item {
 
         player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
             CompoundTag nbt = stack.getOrCreateTag();
-            int current = nbt.getInt("energy");
+            int stored = nbt.getInt("energy");
+            int amount = 100; // Фіксовано
 
             if (player.isShiftKeyDown()) {
-                // Віддаємо енергію з ячейки в ядро Макса (Стабілізація)
-                int toGive = Math.min(Math.min(current, 100), pEnergy.getMaxEnergy() - pEnergy.getEnergy());
+                // Віддати ядру (Shift+ПКМ)
+                int toGive = Math.min(Math.min(stored, amount), pEnergy.getMaxEnergy() - pEnergy.getEnergy());
                 if (toGive > 0) {
                     pEnergy.receiveEnergy(toGive, false);
-                    nbt.putInt("energy", current - toGive);
+                    nbt.putInt("energy", stored - toGive);
                 }
             } else {
-                // Забираємо надлишок з ядра в ячейку (Скид енергії)
-                int toTake = Math.min(Math.min(pEnergy.getEnergy(), 100), capacity - current);
+                // Забрати з ядра (ПКМ)
+                int spaceInCell = 3000 - stored;
+                int toTake = Math.min(Math.min(pEnergy.getEnergy(), amount), spaceInCell);
                 if (toTake > 0) {
-                    pEnergy.extractEnergyPure(toTake, false, level.getGameTime());
-                    nbt.putInt("energy", current + toTake);
+                    pEnergy.extractEnergyPure(toTake, false); // Без досвіду
+                    nbt.putInt("energy", stored + toTake);
                 }
             }
         });
@@ -51,23 +50,9 @@ public class EnergyCellItem extends Item {
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
-        int current = stack.hasTag() ? stack.getTag().getInt("energy") : 0;
-
-        // Опис призначення
-        tooltip.add(Component.translatable("tooltip.tacionian.energy_cell.desc")
-                .withStyle(net.minecraft.ChatFormatting.GRAY));
-
-        // Показник заряду в Тахіонах (Tx)
-        tooltip.add(Component.literal("§eЗапас: " + current + " / " + capacity + " Tx"));
-
-        // Підказки по управлінню
-        tooltip.add(Component.literal("§8ПКМ: Забрати надлишок з ядра"));
-        tooltip.add(Component.literal("§8Shift+ПКМ: Підживити ядро"));
-    }
-
-    // Робимо ячейку візуально зарядженою (енchant effect), якщо в ній більше 0 енергії
-    @Override
-    public boolean isFoil(ItemStack stack) {
-        return stack.hasTag() && stack.getTag().getInt("energy") > 0;
+        int energy = stack.hasTag() ? stack.getTag().getInt("energy") : 0;
+        tooltip.add(Component.translatable("tooltip.tacionian.energy_cell.charge", energy, 3000).withStyle(ChatFormatting.YELLOW));
+        tooltip.add(Component.translatable("tooltip.tacionian.energy_cell.controls_1").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.translatable("tooltip.tacionian.energy_cell.controls_2").withStyle(ChatFormatting.DARK_GRAY));
     }
 }

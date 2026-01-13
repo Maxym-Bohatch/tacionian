@@ -21,9 +21,10 @@ public class TacionianBlockItem extends BlockItem {
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         Block block = this.getBlock();
 
-        if (block == ModBlocks.WIRELESS_INTERFACE.get()) {
+        // Перевірте, щоб у ModBlocks назви збігалися з цими!
+        if (block == ModBlocks.WIRELESS_ENERGY_INTERFACE.get()) {
             tooltip.add(Component.translatable("tooltip.tacionian.wireless_interface.desc").withStyle(ChatFormatting.AQUA));
-            tooltip.add(Component.translatable("tooltip.tacionian.control_hint").withStyle(ChatFormatting.GRAY));
+            tooltip.add(Component.translatable("tooltip.tacionian.wireless_interface.power").withStyle(ChatFormatting.GRAY));
         }
         else if (block == ModBlocks.STABILIZATION_PLATE.get()) {
             tooltip.add(Component.translatable("tooltip.tacionian.stabilization_plate.desc").withStyle(ChatFormatting.GREEN));
@@ -31,12 +32,9 @@ public class TacionianBlockItem extends BlockItem {
         else if (block == ModBlocks.BASIC_CHARGER_BLOCK.get()) {
             tooltip.add(Component.translatable("tooltip.tacionian.basic_charger_block.desc").withStyle(ChatFormatting.GRAY));
         }
-        else if (block == ModBlocks.SAFE_CHARGER_BLOCK.get()) {
-            tooltip.add(Component.translatable("tooltip.tacionian.safe_charger_block.desc").withStyle(ChatFormatting.GOLD));
-        }
-        // Додано для резервуара
-        else if (block == ModBlocks.RESERVOIR_BLOCK.get()) {
-            tooltip.add(Component.translatable("tooltip.tacionian.reservoir.desc").withStyle(ChatFormatting.BLUE));
+        // Виправлено назву змінної на ту, що була в попередніх файлах
+        else if (block == ModBlocks.ENERGY_RESERVOIR.get()) {
+            tooltip.add(Component.translatable("tooltip.tacionian.energy_reservoir.desc").withStyle(ChatFormatting.BLUE));
         }
 
         super.appendHoverText(stack, level, tooltip, flag);

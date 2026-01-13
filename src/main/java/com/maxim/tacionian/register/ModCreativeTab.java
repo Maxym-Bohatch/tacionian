@@ -21,8 +21,8 @@ public class ModCreativeTab {
                 output.accept(ModBlocks.STABILIZATION_PLATE.get());
                 output.accept(ModBlocks.BASIC_CHARGER_BLOCK.get());
                 output.accept(ModBlocks.SAFE_CHARGER_BLOCK.get());
-                output.accept(ModBlocks.RESERVOIR_BLOCK.get());
-                output.accept(ModBlocks.WIRELESS_INTERFACE.get());
+                output.accept(ModBlocks.ENERGY_RESERVOIR.get());
+                output.accept(ModBlocks.WIRELESS_ENERGY_INTERFACE.get());
             })
             .build());
 }

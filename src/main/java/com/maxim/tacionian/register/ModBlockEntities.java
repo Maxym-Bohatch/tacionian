@@ -18,7 +18,7 @@ public class ModBlockEntities {
     public static final RegistryObject<BlockEntityType<WirelessEnergyInterfaceBlockEntity>> WIRELESS_BE =
             BLOCK_ENTITIES.register("wireless_be", () -> BlockEntityType.Builder.of(
                     WirelessEnergyInterfaceBlockEntity::new,
-                    ModBlocks.WIRELESS_INTERFACE.get()
+                    ModBlocks.WIRELESS_ENERGY_INTERFACE.get()
             ).build(null));
 
     public static final RegistryObject<BlockEntityType<TachyonChargerBlockEntity>> CHARGER_BE =
@@ -31,7 +31,7 @@ public class ModBlockEntities {
     public static final RegistryObject<BlockEntityType<EnergyReservoirBlockEntity>> RESERVOIR_BE =
             BLOCK_ENTITIES.register("reservoir_be", () -> BlockEntityType.Builder.of(
                     EnergyReservoirBlockEntity::new,
-                    ModBlocks.RESERVOIR_BLOCK.get()
+                    ModBlocks.ENERGY_RESERVOIR.get()
             ).build(null));
 
     // МЕТОД, ЯКИЙ МАЄ БУТИ ВИКЛИКАНИЙ У ГОЛОВНОМУ КЛАСІ

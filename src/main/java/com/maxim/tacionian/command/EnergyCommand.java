@@ -1,5 +1,6 @@
 package com.maxim.tacionian.command;
 
+import com.maxim.tacionian.energy.PlayerEnergy;
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
 import com.maxim.tacionian.network.EnergySyncPacket;
 import com.maxim.tacionian.network.NetworkHandler;
@@ -43,23 +44,27 @@ public class EnergyCommand {
                 sync(player, energy);
             });
         }
-        source.sendSuccess(() -> Component.literal("§aSet energy for " + targets.size() + " players."), true);
+        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Енергію встановлено на §f" + amount + " §7для §f" + targets.size() + " §7гравців."), true);
         return targets.size();
     }
 
     private static int addEnergy(CommandSourceStack source, Collection<ServerPlayer> targets, int amount) {
         for (ServerPlayer player : targets) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                if (amount >= 0) energy.receiveEnergy(amount, false);
-                else energy.extractEnergyPure(Math.abs(amount), false, player.level().getGameTime());
+                if (amount >= 0) {
+                    energy.receiveEnergy(amount, false);
+                } else {
+                    // ВИПРАВЛЕНО: Видалено аргумент часу (player.level().getGameTime())
+                    energy.extractEnergyPure(Math.abs(amount), false);
+                }
                 sync(player, energy);
             });
         }
-        source.sendSuccess(() -> Component.literal("§aModified energy for " + targets.size() + " players."), true);
+        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Енергію змінено на §f" + amount + " §7для §f" + targets.size() + " §7гравців."), true);
         return targets.size();
     }
 
-    private static void sync(ServerPlayer player, com.maxim.tacionian.energy.PlayerEnergy energy) {
+    private static void sync(ServerPlayer player, PlayerEnergy energy) {
         NetworkHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new EnergySyncPacket(energy));
     }
 }

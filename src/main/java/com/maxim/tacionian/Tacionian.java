@@ -1,31 +1,46 @@
 package com.maxim.tacionian;
 
-import com.maxim.tacionian.command.CommandRegister;
+import com.maxim.tacionian.energy.PlayerEnergy;
 import com.maxim.tacionian.network.NetworkHandler;
-import com.maxim.tacionian.register.ModBlockEntities;
 import com.maxim.tacionian.register.ModBlocks;
-import com.maxim.tacionian.register.ModCreativeTab;
 import com.maxim.tacionian.register.ModItems;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
-@Mod("tacionian")
+@Mod(Tacionian.MOD_ID)
 public class Tacionian {
+    public static final String MOD_ID = "tacionian";
+
     public Tacionian() {
-        IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+        var bus = FMLJavaModLoadingContext.get().getModEventBus();
 
-        // Порядок важливий!
-        ModBlocks.BLOCKS.register(modEventBus);
-        ModItems.ITEMS.register(modEventBus);
-        ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
-        ModCreativeTab.TABS.register(modEventBus);
+        ModItems.ITEMS.register(bus);
+        ModBlocks.BLOCKS.register(bus);
 
-        // Реєструємо мережу
-        NetworkHandler.register();
+        bus.addListener(this::commonSetup);
 
+        // ДОДАЙ ЦЕЙ РЯДОК: реєструємо цей клас на шині моду для роботи registerCaps
+        bus.register(this);
+
+        // Реєстрація на загальній шині (для команд та інших подій)
         MinecraftForge.EVENT_BUS.register(this);
-        MinecraftForge.EVENT_BUS.addListener(CommandRegister::onRegister);
     }
+
+    private void commonSetup(final FMLCommonSetupEvent event) {
+        event.enqueueWork(NetworkHandler::register);
     }
+
+    // Тепер цей метод точно спрацює, бо ми додали bus.register(this)
+    @SubscribeEvent
+    public void registerCaps(RegisterCapabilitiesEvent event) {
+        event.register(PlayerEnergy.class);
+    }
+    @SubscribeEvent
+    public void onRegisterCommands(net.minecraftforge.event.RegisterCommandsEvent event) {
+        com.maxim.tacionian.command.EnergyCommand.register(event.getDispatcher());
+    }
+}

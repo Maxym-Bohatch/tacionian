@@ -6,64 +6,59 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
+
 import java.util.List;
 
 public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
-    private static final double RANGE = 10.0;
-    private int mode = 1; // 0: 30%, 1: 60%, 2: 90%
+    private int mode = 0; // 0:Safe, 1:Balanced, 2:Performance, 3:Unrestricted
 
     public WirelessEnergyInterfaceBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.WIRELESS_BE.get(), pos, state);
     }
 
+    // Метод для перемикання режимів
     public void cycleMode(Player player) {
-        this.mode = (this.mode + 1) % 3;
-        int percent = mode == 0 ? 30 : mode == 1 ? 60 : 90;
-
-        player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
-            pEnergy.setStabilizationThreshold(percent);
-        });
-
-        player.sendSystemMessage(Component.literal("§b[Інтерфейс] §7Поріг встановлено: §f" + percent + "%"));
-        setChanged();
+        this.mode = (this.mode + 1) % 4;
+        if (level != null && !level.isClientSide) {
+            player.displayClientMessage(Component.translatable("message.tacionian.mode_switched", getModeName()), true);
+        }
+        setChanged(); // Зберігаємо стан блоку
     }
 
+    // Статичний метод tick для Forge
     public static void tick(Level level, BlockPos pos, BlockState state, WirelessEnergyInterfaceBlockEntity be) {
         if (level.isClientSide) return;
 
-        int thresholdPercent = be.mode == 0 ? 30 : be.mode == 1 ? 60 : 90;
-        List<ServerPlayer> players = level.getEntitiesOfClass(ServerPlayer.class, new AABB(pos).inflate(RANGE));
-        long time = level.getGameTime();
+        AABB area = new AABB(pos).inflate(10);
+        List<Player> players = level.getEntitiesOfClass(Player.class, area);
 
-        for (ServerPlayer player : players) {
+        int threshold = switch (be.mode) {
+            case 0 -> 75; case 1 -> 40; case 2 -> 15; default -> 0;
+        };
+
+        for (Player player : players) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
                 pEnergy.setRemoteStabilized(true);
-                pEnergy.setStabilizationThreshold(thresholdPercent); // Передаємо налаштування в ядро
 
-                int limit = (int)(pEnergy.getMaxEnergy() * (thresholdPercent / 100.0f));
+                if (pEnergy.getEnergyPercent() > threshold) {
+                    int txToTake = 20;
+                    // Виклик без level.getGameTime()
+                    int extracted = pEnergy.extractEnergyWithExp(txToTake, false, player);
 
-                if (pEnergy.getEnergy() < limit) {
-                    pEnergy.receiveEnergy(20, false);
-                }
-
-                if (pEnergy.getEnergy() >= limit) {
-                    for (Direction dir : Direction.values()) {
-                        BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-                        if (neighbor != null) {
-                            neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(rf -> {
-                                int toSend = Math.min(pEnergy.getEnergy() - limit, 100);
-                                if (toSend > 0) {
-                                    int accepted = rf.receiveEnergy(toSend, false);
-                                    pEnergy.extractEnergyPure(accepted, false, time);
-                                }
-                            });
+                    if (extracted > 0) {
+                        for (Direction dir : Direction.values()) {
+                            BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+                            if (neighbor != null) {
+                                neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite())
+                                        .ifPresent(cap -> cap.receiveEnergy(extracted * 10, false));
+                            }
                         }
                     }
                 }
@@ -71,6 +66,25 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
         }
     }
 
-    @Override protected void saveAdditional(CompoundTag nbt) { nbt.putInt("StabilizationMode", mode); super.saveAdditional(nbt); }
-    @Override public void load(CompoundTag nbt) { super.load(nbt); this.mode = nbt.getInt("StabilizationMode"); }
+    public Component getModeName() {
+        return switch (mode) {
+            case 0 -> Component.translatable("mode.tacionian.safe");
+            case 1 -> Component.translatable("mode.tacionian.balanced");
+            case 2 -> Component.translatable("mode.tacionian.performance");
+            default -> Component.translatable("mode.tacionian.unrestricted");
+        };
+    }
+
+    // Збереження режиму при перезавантаженні світу
+    @Override
+    protected void saveAdditional(CompoundTag nbt) {
+        nbt.putInt("Mode", mode);
+        super.saveAdditional(nbt);
+    }
+
+    @Override
+    public void load(CompoundTag nbt) {
+        super.load(nbt);
+        this.mode = nbt.getInt("Mode");
+    }
 }
