@@ -39,5 +39,8 @@
 
   "item.tacionian.energy_cell": "Energy Cell",
   "block.tacionian.basic_charger_block": "Basic Charging Block",
-  "tooltip.tacionian.basic_charger_block.desc": "§7A stationary device that transfers player energy to machines. Slower than advanced versions."
+  "tooltip.tacionian.basic_charger_block.desc": "§7A stationary device that transfers player energy to machines. Slower than advanced versions.",
+  "message.tacionian.level_down": "§4§lWARNING! §cCore level downgraded to: %s",
+  "message.tacionian.overload_critical": "§cCritical Overload! Core structure is collapsing!",
+  "message.tacionian.low_energy_warning": "§eCore unstable due to low energy!"
 }

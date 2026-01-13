@@ -39,5 +39,9 @@
 
   "item.tacionian.energy_cell": "Енергетична комірка",
   "block.tacionian.basic_charger_block": "Базовий зарядний блок",
-  "tooltip.tacionian.basic_charger_block.desc": "§7Стаціонарний пристрій, що передає енергію гравця до механізмів. Працює повільніше за просунуті версії."
+  "tooltip.tacionian.basic_charger_block.desc": "§7Стаціонарний пристрій, що передає енергію гравця до механізмів. Працює повільніше за просунуті версії.",
+
+  "message.tacionian.level_down": "§4§lУВАГА! §cРівень ядра знижено до: %s",
+  "message.tacionian.overload_critical": "§cКритичне перевантаження! Структура ядра руйнується!",
+  "message.tacionian.low_energy_warning": "§eЯдро нестабільне через низький заряд!"
 }
