@@ -1,6 +1,7 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "block/cube_column",
   "textures": {
-    "all": "tacionian:block/stabilization_plate"
+    "end": "examplemod:block/stabilization_plate_top",
+    "side": "examplemod:block/stabilization_plate_side"
   }
 }

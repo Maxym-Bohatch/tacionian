@@ -1,6 +1,7 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "block/cube_column",
   "textures": {
-    "all": "tacionian:block/wireless_energy_interface"
+    "end": "examplemod:block/wireless_energy_interface_top",
+    "side": "examplemod:block/wireless_energy_interface_side"
   }
 }

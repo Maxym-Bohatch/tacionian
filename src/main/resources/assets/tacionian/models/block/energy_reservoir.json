@@ -1,6 +1,7 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "block/cube_column",
   "textures": {
-    "all": "tacionian:block/energy_reservoir"
+    "end": "examplemod:block/energy_reservoir_top",
+    "side": "examplemod:block/energy_reservoir_side"
   }
 }

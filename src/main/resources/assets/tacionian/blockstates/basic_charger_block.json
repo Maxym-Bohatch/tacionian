@@ -1,7 +1,7 @@
 {
   "variants": {
     "": {
-      "model": "tacionian:block/basic_charger_block"
+      "model": "examplemod:block/basic_charger_block"
     }
   }
 }

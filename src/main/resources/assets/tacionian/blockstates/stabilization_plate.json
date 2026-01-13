@@ -1,7 +1,7 @@
 {
   "variants": {
     "": {
-      "model": "tacionian:block/stabilization_plate"
+      "model": "examplemod:block/stabilization_plate"
     }
   }
 }

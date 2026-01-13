@@ -1,6 +1,3 @@
 {
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "tacionian:item/energy_reservoir"
-  }
+  "parent": "examplemod:block/energy_reservoir"
 }
