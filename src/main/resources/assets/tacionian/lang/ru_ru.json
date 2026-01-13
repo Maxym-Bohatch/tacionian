@@ -46,5 +46,8 @@
 
   "tooltip.tacionian.active": "§aАКТИВНО",
   "tooltip.tacionian.inactive": "§cНЕАКТИВНО",
-  "tooltip.tacionian.level": "Уровень ядра"
+  "tooltip.tacionian.level": "Уровень ядра",
+
+  "tooltip.tacionian.wireless_interface.desc": "§7Дистанционно выкачивает энергию игроков для питания соседних машин.",
+  "tooltip.tacionian.wireless_interface.power": "§7Радиус: §e10 блоков"
 }

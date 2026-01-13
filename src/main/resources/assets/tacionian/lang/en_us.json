@@ -46,5 +46,8 @@
 
   "tooltip.tacionian.active": "§aACTIVE",
   "tooltip.tacionian.inactive": "§cINACTIVE",
-  "tooltip.tacionian.level": "Core Lvl"
+  "tooltip.tacionian.level": "Core Lvl",
+
+  "tooltip.tacionian.wireless_interface.desc": "§7Wirelessly extracts energy from nearby players to power adjacent machines.",
+  "tooltip.tacionian.wireless_interface.power": "§7Range: §e10 blocks"
 }
