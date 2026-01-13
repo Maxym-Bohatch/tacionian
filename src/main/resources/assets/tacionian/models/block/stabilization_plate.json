@@ -1,7 +1,7 @@
 {
   "parent": "block/cube_column",
   "textures": {
-    "end": "examplemod:block/stabilization_plate_top",
-    "side": "examplemod:block/stabilization_plate_side"
+    "end": "tacionian:block/stabilization_plate_top",
+    "side": "tacionian:block/stabilization_plate_side"
   }
 }

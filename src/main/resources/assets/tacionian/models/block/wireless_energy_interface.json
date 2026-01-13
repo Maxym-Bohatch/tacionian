@@ -1,7 +1,7 @@
 {
   "parent": "block/cube_column",
   "textures": {
-    "end": "examplemod:block/wireless_energy_interface_top",
-    "side": "examplemod:block/wireless_energy_interface_side"
+    "end": "tacionian:block/wireless_energy_interface_top",
+    "side": "tacionian:block/wireless_energy_interface_side"
   }
 }

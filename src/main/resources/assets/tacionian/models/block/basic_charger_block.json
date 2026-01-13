@@ -1,7 +1,7 @@
 {
   "parent": "block/cube_column",
   "textures": {
-    "end": "examplemod:block/basic_charger_block_top",
-    "side": "examplemod:block/basic_charger_block_side"
+    "end": "tacionian:block/basic_charger_block_top",
+    "side": "tacionian:block/basic_charger_block_side"
   }
 }

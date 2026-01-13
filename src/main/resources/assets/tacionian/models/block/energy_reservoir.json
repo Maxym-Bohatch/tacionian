@@ -1,7 +1,7 @@
 {
   "parent": "block/cube_column",
   "textures": {
-    "end": "examplemod:block/energy_reservoir_top",
-    "side": "examplemod:block/energy_reservoir_side"
+    "end": "tacionian:block/energy_reservoir_top",
+    "side": "tacionian:block/energy_reservoir_side"
   }
 }
