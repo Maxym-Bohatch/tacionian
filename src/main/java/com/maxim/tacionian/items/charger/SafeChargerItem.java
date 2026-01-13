@@ -3,6 +3,7 @@ package com.maxim.tacionian.items.charger;
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer; // ДОДАНО
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.Entity;
@@ -17,7 +18,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 public class SafeChargerItem extends Item {
-    public SafeChargerItem(Properties props) { super(props.stacksTo(1)); }
+    public SafeChargerItem(Properties props) {
+        super(props.stacksTo(1));
+    }
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
@@ -25,7 +28,6 @@ public class SafeChargerItem extends Item {
         if (!level.isClientSide) {
             boolean active = !stack.getOrCreateTag().getBoolean("Active");
             stack.getOrCreateTag().putBoolean("Active", active);
-            // Використовуємо ключі локалізації, які ми прописали раніше
             player.displayClientMessage(Component.translatable(active ? "tooltip.tacionian.active" : "tooltip.tacionian.inactive"), true);
         }
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
@@ -33,42 +35,53 @@ public class SafeChargerItem extends Item {
 
     @Override
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
-        if (level.isClientSide || !(entity instanceof Player player) || !stack.getOrCreateTag().getBoolean("Active")) return;
+        // Замінюємо Player на ServerPlayer для роботи з енергією
+        if (level.isClientSide || !(entity instanceof ServerPlayer serverPlayer) || !stack.getOrCreateTag().getBoolean("Active")) return;
 
         // Кожну секунду (20 тіків)
         if (level.getGameTime() % 20 == 0) {
-            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
+            serverPlayer.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
                 // Перевірка безпеки (залишаємо мінімум 15% енергії гравцю)
                 int minEnergy = (int) (pEnergy.getMaxEnergy() * 0.15f);
                 int availableTx = pEnergy.getEnergy() - minEnergy;
 
                 if (availableTx <= 0) return;
 
-                for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-                    ItemStack target = player.getInventory().getItem(i);
+                boolean changed = false;
+                for (int i = 0; i < serverPlayer.getInventory().getContainerSize(); i++) {
+                    ItemStack target = serverPlayer.getInventory().getItem(i);
                     if (target.isEmpty() || target == stack) continue;
 
-                    target.getCapability(ForgeCapabilities.ENERGY).ifPresent(cap -> {
-                        // Конвертація: 1 Tx = 10 RF (якщо accepted повертає RF)
-                        int maxRfToGive = Math.min(availableTx * 10, 1000);
-                        int acceptedRf = cap.receiveEnergy(maxRfToGive, true);
+                    if (target.getCapability(ForgeCapabilities.ENERGY).isPresent()) {
+                        target.getCapability(ForgeCapabilities.ENERGY).ifPresent(cap -> {
+                            int maxRfToGive = Math.min(availableTx * 10, 1000);
+                            int acceptedRf = cap.receiveEnergy(maxRfToGive, true);
 
-                        if (acceptedRf > 0) {
-                            int txToExtract = acceptedRf / 10;
-                            if (txToExtract < 1) txToExtract = 1;
+                            if (acceptedRf > 0) {
+                                int txToExtract = acceptedRf / 10;
+                                if (txToExtract < 1) txToExtract = 1;
 
-                            // ВИПРАВЛЕНО: Видалено level.getGameTime()
-                            int extractedTx = pEnergy.extractEnergyWithExp(txToExtract, false, player);
-                            cap.receiveEnergy(extractedTx * 10, false);
-                        }
-                    });
+                                // ТЕПЕР ПЕРЕДАЄМО serverPlayer - помилка зникне
+                                int extractedTx = pEnergy.extractEnergyWithExp(txToExtract, false, serverPlayer);
+                                cap.receiveEnergy(extractedTx * 10, false);
+                            }
+                        });
+                        changed = true;
+                    }
+                }
+
+                // Синхронізуємо дані з клієнтом після кожної ітерації зарядки
+                if (changed) {
+                    pEnergy.sync(serverPlayer);
                 }
             });
         }
     }
 
     @Override
-    public boolean isFoil(ItemStack stack) { return stack.getOrCreateTag().getBoolean("Active"); }
+    public boolean isFoil(ItemStack stack) {
+        return stack.getOrCreateTag().getBoolean("Active");
+    }
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {

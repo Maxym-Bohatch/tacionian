@@ -17,12 +17,13 @@ public class StabilizationPlateBlock extends Block {
     public void stepOn(Level level, BlockPos pos, BlockState state, Entity entity) {
         if (!level.isClientSide && entity instanceof Player player) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                // Встановлюємо статус стабілізації
-                energy.setStabilized(true);
+                // Активуємо віддалену стабілізацію
+                energy.setRemoteStabilized(true);
 
-                // Якщо енергія вище 95%, плита "спалює" надлишок без досвіду
+                // Плита автоматично скидає енергію до 95%, якщо є перевантаження
                 if (energy.getEnergyPercent() > 95) {
-                    energy.extractEnergyPure(20, false);
+                    // Використовуємо пряме встановлення енергії для стабілізації
+                    energy.setEnergy((int)(energy.getMaxEnergy() * 0.95f));
                 }
             });
         }
