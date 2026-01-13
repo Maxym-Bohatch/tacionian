@@ -21,11 +21,13 @@
   "tooltip.tacionian.stabilization_plate.desc": "§7Пасивно стабілізує ядро. §eПрисядьте (Shift) для швидкого зливу енергії.",
 
   "block.tacionian.energy_reservoir": "Енергетичний резервуар",
-  "tooltip.tacionian.energy_reservoir.desc": "§7ПКМ щоб зберегти енергію. Shift+ПКМ щоб забрати її назад.",
+  "block.tacionian.energy_reservoir.controls": "§6ПКМ §7- покласти енергію, §6Shift+ПКМ §7- забрати",
+  "tooltip.tacionian.energy_reservoir.desc": "§7Блок, здатний зберігати та повертати тахіонну енергію.",
+  "tooltip.tacionian.energy_reservoir.energy": "Заряд резервуара: §b%s / %s Tx",
 
   "block.tacionian.wireless_energy_interface": "Бездротовий інтерфейс",
-  "tooltip.tacionian.wireless_energy_interface.desc": "§7Дистанційно викачує енергію гравців для живлення сусідніх машин.",
-  "tooltip.tacionian.wireless_energy_interface.power": "§7Радіус: §e10 блоків",
+  "tooltip.tacionian.wireless_interface.desc": "§7Дистанційно викачує енергію гравців для живлення сусідніх машин.",
+  "tooltip.tacionian.wireless_interface.power": "§7Радіус: §e10 блоків",
 
   "block.tacionian.basic_charger_block": "Базовий зарядний блок",
   "tooltip.tacionian.basic_charger_block.desc": "§7Стаціонарний пристрій, що передає енергію гравця до FE машин.",
@@ -46,8 +48,5 @@
 
   "tooltip.tacionian.active": "§aАКТИВНО",
   "tooltip.tacionian.inactive": "§cНЕАКТИВНО",
-  "tooltip.tacionian.level": "Рівень ядра",
-
-  "tooltip.tacionian.wireless_interface.desc": "§7Дистанційно викачує енергію гравців для живлення сусідніх машин.",
-  "tooltip.tacionian.wireless_interface.power": "§7Радіус: §e10 блоків"
+  "tooltip.tacionian.level": "Рівень ядра"
 }

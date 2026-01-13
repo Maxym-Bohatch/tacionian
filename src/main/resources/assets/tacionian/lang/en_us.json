@@ -21,11 +21,13 @@
   "tooltip.tacionian.stabilization_plate.desc": "§7Passively stabilizes the core. §eCrouch (Shift) to rapidly discharge energy.",
 
   "block.tacionian.energy_reservoir": "Energy Reservoir",
-  "tooltip.tacionian.energy_reservoir.desc": "§7Right-click to store energy. Shift+Right-click to take it back.",
+  "block.tacionian.energy_reservoir.controls": "§6RMB §7- store energy, §6Shift+RMB §7- withdraw",
+  "tooltip.tacionian.energy_reservoir.desc": "§7A block that can store and return Tachyon energy.",
+  "tooltip.tacionian.energy_reservoir.energy": "Energy Stored: §b%s / %s Tx",
 
   "block.tacionian.wireless_energy_interface": "Wireless Interface",
-  "tooltip.tacionian.wireless_energy_interface.desc": "§7Wirelessly extracts energy from nearby players to power adjacent machines.",
-  "tooltip.tacionian.wireless_energy_interface.power": "§7Range: §e10 blocks",
+  "tooltip.tacionian.wireless_interface.desc": "§7Wirelessly extracts energy from nearby players to power adjacent machines.",
+  "tooltip.tacionian.wireless_interface.power": "§7Range: §e10 blocks",
 
   "block.tacionian.basic_charger_block": "Basic Charging Block",
   "tooltip.tacionian.basic_charger_block.desc": "§7Stationary device that transfers player energy to FE machines.",
@@ -46,8 +48,5 @@
 
   "tooltip.tacionian.active": "§aACTIVE",
   "tooltip.tacionian.inactive": "§cINACTIVE",
-  "tooltip.tacionian.level": "Core Lvl",
-
-  "tooltip.tacionian.wireless_interface.desc": "§7Wirelessly extracts energy from nearby players to power adjacent machines.",
-  "tooltip.tacionian.wireless_interface.power": "§7Range: §e10 blocks"
+  "tooltip.tacionian.level": "Core Lvl"
 }
