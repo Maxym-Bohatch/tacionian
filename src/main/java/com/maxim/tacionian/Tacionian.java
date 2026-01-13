@@ -2,6 +2,7 @@ package com.maxim.tacionian;
 
 import com.maxim.tacionian.energy.PlayerEnergy;
 import com.maxim.tacionian.network.NetworkHandler;
+import com.maxim.tacionian.register.ModBlockEntities;
 import com.maxim.tacionian.register.ModBlocks;
 import com.maxim.tacionian.register.ModItems;
 import com.maxim.tacionian.register.ModCreativeTab; // Переконайся, що імпорт правильний
@@ -21,15 +22,17 @@ public class Tacionian {
     public Tacionian() {
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
 
-        // Реєстрація контенту на шині моду
-        ModItems.ITEMS.register(modBus);
+        // 1. Реєструємо блоки ТА їхні Block Entities (ОБОВ'ЯЗКОВО)
         ModBlocks.BLOCKS.register(modBus);
-        ModCreativeTab.register(modBus); // Викликаємо метод реєстрації вкладки
+        ModBlockEntities.register(modBus); // ДОДАНО ЦЕЙ РЯДОК
+
+        // 2. Реєструємо предмети та вкладку
+        ModItems.ITEMS.register(modBus);
+        ModCreativeTab.register(modBus);
 
         modBus.addListener(this::commonSetup);
         modBus.addListener(this::registerCaps);
 
-        // Реєстрація команд на шині Forge
         MinecraftForge.EVENT_BUS.addListener(this::onRegisterCommands);
     }
 
