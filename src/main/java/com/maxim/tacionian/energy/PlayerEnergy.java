@@ -14,8 +14,12 @@ public class PlayerEnergy {
     private int level = 1;
     private int experience = 0;
 
-    private boolean stabilized, remoteStabilized, remoteNoDrain;
+    // Статуси стабілізації (важливо для EnergyControlResolver)
+    private boolean stabilized = false;
+    private boolean remoteStabilized = false;
+    private boolean remoteNoDrain = false;
 
+    /** ВІДПРАВКА ДАНИХ КЛІЄНТУ (HUD) */
     public void sync(ServerPlayer player) {
         if (player != null) {
             NetworkHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new EnergySyncPacket(this));
@@ -26,22 +30,21 @@ public class PlayerEnergy {
         if (player.level().isClientSide) return;
         ServerPlayer serverPlayer = (ServerPlayer) player;
 
-        // --- ЛОГІКА ПАСИВНОЇ БЕЗПЕКИ ТА РЕГЕНЕРАЦІЇ ---
+        // 1. Пасивна безпека для початківців (до 5 рівня)
         if (this.level <= 5) {
             int safeLimit = (int) (getMaxEnergy() * 0.95f);
             if (this.energy > safeLimit) this.energy = safeLimit;
         }
 
+        // 2. Пасивна регенерація
         if (!remoteNoDrain) {
             int regenMax = (level <= 5) ? (int)(getMaxEnergy() * 0.95f) : getMaxEnergy();
             if (this.energy < regenMax) receiveEnergy(getRegenRate(), false);
         }
 
-        // --- НОВА ЛОГІКА ШТРАФІВ (ДЕГРАДАЦІЯ) ---
-
-        // 1. Штраф за перевантаження (> 100%)
+        // 3. Логіка штрафів за перевантаження (> 100%)
         if (this.energy > getMaxEnergy()) {
-            // Кожні 10 одиниць надлишку додають 1 одиницю втрати досвіду за тік
+            // Штраф: 1 од. досвіду за кожні 10 од. зайвої енергії
             int overloadPenalty = Math.max(1, (this.energy - getMaxEnergy()) / 10);
             decreaseExperience(overloadPenalty, serverPlayer);
 
@@ -50,8 +53,7 @@ public class PlayerEnergy {
             }
         }
 
-        // 2. Штраф за критичний дефіцит (< 5%)
-        // Якщо енергії майже немає, структура ядра стає крихкою
+        // 4. Штраф за критичний дефіцит (< 5%)
         if (isCriticalLow() && this.level > 1 && !remoteNoDrain) {
             decreaseExperience(2, serverPlayer);
         }
@@ -74,16 +76,12 @@ public class PlayerEnergy {
         }
     }
 
-    /** НОВИЙ МЕТОД: Зменшення досвіду та втрата рівня */
     public void decreaseExperience(int amount, ServerPlayer player) {
         this.experience -= amount;
-
         if (this.experience < 0) {
             if (this.level > 1) {
                 this.level--;
-                // При падінні рівня ставимо досвід на 75%, щоб не було постійного стрибка туди-сюди
-                this.experience = (int) (getRequiredExp() * 0.75f);
-
+                this.experience = (int) (getRequiredExp() * 0.75f); // Ставимо 75% досвіду на новому рівні
                 if (player != null) {
                     player.sendSystemMessage(Component.translatable("message.tacionian.level_down", this.level)
                             .withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD));
@@ -92,14 +90,21 @@ public class PlayerEnergy {
                 this.experience = 0;
             }
         }
-
-        // Синхронізуємо зміни, щоб HUD оновився
-        if (player != null && player.tickCount % 10 == 0) {
-            this.sync(player);
-        }
+        if (player != null && player.tickCount % 20 == 0) this.sync(player);
     }
 
-    // --- РЕШТА МЕТОДІВ (БЕЗ ЗМІН) ---
+    // --- ГЕТТЕРИ ТА СЕТТЕРИ СТАТУСІВ (Для Resolver) ---
+
+    public boolean isStabilized() { return stabilized; }
+    public void setStabilized(boolean v) { this.stabilized = v; }
+
+    public boolean isRemoteStabilized() { return remoteStabilized; }
+    public void setRemoteStabilized(boolean v) { this.remoteStabilized = v; }
+
+    public boolean isRemoteNoDrain() { return remoteNoDrain; }
+    public void setRemoteNoDrain(boolean v) { this.remoteNoDrain = v; }
+
+    // --- РОЗРАХУНКИ ---
 
     public int getEnergyPercent() {
         if (getMaxEnergy() <= 0) return 0;
@@ -117,17 +122,24 @@ public class PlayerEnergy {
     public int getRequiredExp() {
         return 500 + (level * 100);
     }
-
+    public int getStabilityThreshold() {
+        return 10;
+    }
     public boolean isCriticalLow() {
         return getEnergyPercent() < 5;
     }
 
+    public boolean isOverloaded() {
+        return this.energy > getMaxEnergy();
+    }
+
+    // --- МАНІПУЛЯЦІЇ ЕНЕРГІЄЮ ---
+
     public void setEnergy(int energy) {
-        this.energy = Math.max(0, energy); // Дозволяємо тимчасове перевантаження
+        this.energy = Math.max(0, energy);
     }
 
     public void receiveEnergy(int amount, boolean simulate) {
-        // Дозволяємо отримувати енергію навіть понад ліміт, але tick() почне штрафувати
         if (!simulate) energy += amount;
     }
 
@@ -146,6 +158,8 @@ public class PlayerEnergy {
         return toExt;
     }
 
+    // --- ЗБЕРЕЖЕННЯ ---
+
     public void saveNBTData(CompoundTag nbt) {
         nbt.putInt("energy", energy);
         nbt.putInt("level", level);
@@ -161,6 +175,4 @@ public class PlayerEnergy {
     public int getEnergy() { return energy; }
     public int getLevel() { return level; }
     public int getExperience() { return experience; }
-    public void setRemoteStabilized(boolean v) { this.remoteStabilized = v; }
-    public void setRemoteNoDrain(boolean v) { this.remoteNoDrain = v; }
 }
