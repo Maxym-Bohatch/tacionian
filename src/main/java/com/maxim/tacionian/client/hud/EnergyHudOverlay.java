@@ -13,14 +13,14 @@ public class EnergyHudOverlay {
         if (mc.level == null || mc.player == null || mc.player.isSpectator()) return;
         if (!ClientPlayerEnergy.hasData()) return;
 
-        // --- КОНФІГУРАЦІЯ (Трохи збільшив ширину для балансу) ---
+        // --- КООРДИНАТИ ТА РОЗМІРИ ---
         int x = 15;
         int y = 15;
-        int barWidth = 110;
+        int barWidth = 120; // Трохи ширше для кращого вигляду
         int barHeight = 8;
         float gameTime = mc.level.getGameTime() + partialTick;
 
-        // --- ЛОГІКА КОЛЬОРІВ ---
+        // --- ЛОГІКА СТАНІВ ТА КОЛЬОРІВ ---
         int baseColor;
         boolean isDanger = false;
         boolean isStable = false;
@@ -49,21 +49,19 @@ public class EnergyHudOverlay {
             finalColor = multiplyColor(baseColor, breath);
         }
 
-        // --- РЕНДЕР ТЕКСТУ (З ПРАВИЛЬНИМ ВІДСТУПОМ) ---
+        // --- РЕНДЕР ТЕКСТУ В СТОВПЧИК ---
+        // Рядок 1: Рівень ядра
         Component lvlComp = Component.translatable("tooltip.tacionian.level");
-        String levelText = lvlComp.getString() + " " + ClientPlayerEnergy.getLevel();
-        String energyText = ClientPlayerEnergy.getEnergy() + " Tx";
-
-        // Малюємо Рівень зліва
+        String levelText = lvlComp.getString() + ": " + ClientPlayerEnergy.getLevel();
         graphics.drawString(mc.font, levelText, x, y, isDanger ? 0xFFFFAA00 : 0xFFFFFF, true);
 
-        // Малюємо Енергію Tx ПРАВІШЕ (додав запас + 10 до barWidth, щоб не було наїзду)
-        int energyTextWidth = mc.font.width(energyText);
-        int energyX = x + Math.max(barWidth, mc.font.width(levelText) + 20) - energyTextWidth;
-        graphics.drawString(mc.font, energyText, energyX, y, 0xCCCCCC, true);
+        // Рядок 2: Поточна / Максимальна енергія
+        // Використовуємо getMaxEnergy() з логіки, щоб показати ліміт
+        String energyValues = ClientPlayerEnergy.getEnergy() + " / " + ClientPlayerEnergy.getMaxEnergy() + " Tx";
+        graphics.drawString(mc.font, energyValues, x, y + 10, 0xAAAAAA, true);
 
-        // --- РЕНДЕР БАРІВ (Змістив на 12 пікселів вниз від тексту) ---
-        int barY = y + 12;
+        // --- РЕНДЕР БАРІВ ---
+        int barY = y + 22; // Зміщуємо нижче, бо тепер два рядки тексту
         float ratio = Math.min(ClientPlayerEnergy.getRatio(), 1.0f);
         int filledWidth = (int) (barWidth * ratio);
 
@@ -73,9 +71,11 @@ public class EnergyHudOverlay {
 
         if (filledWidth > 0) {
             graphics.fill(x, barY, x + filledWidth, barY + barHeight, finalColor);
-            graphics.fill(x, barY, x + filledWidth, barY + 2, 0x33FFFFFF); // Відблиск
 
-            // Shimmer ефект для стабільних станів
+            // Статичний відблиск зверху
+            graphics.fill(x, barY, x + filledWidth, barY + 2, 0x33FFFFFF);
+
+            // Анімований "сканер" для стабільних станів
             if (isStable) {
                 float scanPos = (gameTime % 40) / 40.0f;
                 int scanX = x + (int)(filledWidth * scanPos);
@@ -85,8 +85,8 @@ public class EnergyHudOverlay {
             }
         }
 
-        // Бар досвіду (Золотий)
-        int xpY = barY + barHeight + 3; // Збільшив відступ до 3 пікселів
+        // Рядок 3: Бар досвіду (Золотий)
+        int xpY = barY + barHeight + 3;
         float expRatio = Math.max(0, Math.min((float) ClientPlayerEnergy.getExperience() / ClientPlayerEnergy.getRequiredExp(), 1.0f));
         int xpFilledWidth = (int) (barWidth * expRatio);
 
