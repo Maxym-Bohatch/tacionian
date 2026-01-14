@@ -2,7 +2,9 @@ package com.maxim.tacionian.items.charger;
 
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
@@ -28,27 +30,39 @@ public class BasicChargerItem extends Item {
             for (ItemStack target : serverPlayer.getInventory().items) {
                 if (target.isEmpty() || target == stack) continue;
 
-                if (target.getCapability(ForgeCapabilities.ENERGY).isPresent()) {
-                    // Використовуємо масив для отримання результату з лямбда-виразу
+                var capOpt = target.getCapability(ForgeCapabilities.ENERGY);
+                if (capOpt.isPresent()) {
                     final boolean[] success = {false};
-                    target.getCapability(ForgeCapabilities.ENERGY).ifPresent(cap -> {
-                        int neededRF = cap.receiveEnergy(500, true);
-                        if (neededRF > 0) {
-                            // Гарантуємо, що txToTake мінімум 1, щоб метод з досвідом спрацював
-                            int txToTake = Math.max(1, neededRF / 10);
-                            int takenTx = pEnergy.extractEnergyWithExp(txToTake, false, serverPlayer);
+                    capOpt.ifPresent(cap -> {
+                        if (cap.canReceive()) {
+                            int neededRF = cap.receiveEnergy(500, true);
+                            if (neededRF > 0) {
+                                // Виправлена математика: округлення вгору, щоб мінімум був 1 Tx
+                                int txToTake = (neededRF + 9) / 10;
+                                int takenTx = pEnergy.extractEnergyWithExp(txToTake, false, serverPlayer);
 
-                            if (takenTx > 0) {
-                                cap.receiveEnergy(takenTx * 10, false);
-                                success[0] = true;
+                                if (takenTx > 0) {
+                                    cap.receiveEnergy(takenTx * 10, false);
+                                    success[0] = true;
+                                }
                             }
                         }
                     });
                     if (success[0]) changed = true;
                 }
             }
-            // Синхронізуємо частіше, щоб бачити прогрес досвіду
-            if (changed && level.getGameTime() % 5 == 0) pEnergy.sync(serverPlayer);
+
+            if (changed) {
+                // Синхронізація досвіду
+                pEnergy.sync(serverPlayer);
+
+                // Візуальний ефект роботи
+                if (level.getGameTime() % 10 == 0 && level instanceof ServerLevel serverLevel) {
+                    serverLevel.sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                            serverPlayer.getX(), serverPlayer.getY() + 1.0, serverPlayer.getZ(),
+                            2, 0.3, 0.3, 0.3, 0.05);
+                }
+            }
         });
     }
 

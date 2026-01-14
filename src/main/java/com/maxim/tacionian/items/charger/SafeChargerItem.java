@@ -2,7 +2,9 @@ package com.maxim.tacionian.items.charger;
 
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
@@ -33,40 +35,52 @@ public class SafeChargerItem extends Item {
 
     @Override
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
-        if (level.isClientSide || !(entity instanceof ServerPlayer serverPlayer) || !stack.getOrCreateTag().getBoolean("Active")) return;
+        if (level.isClientSide || !(entity instanceof ServerPlayer serverPlayer)) return;
+        if (!stack.getOrCreateTag().getBoolean("Active")) return;
 
-        // Зменшуємо інтервал до 10 тіків для більш плавного нарахування досвіду
-        if (level.getGameTime() % 10 == 0) {
+        // Обробка кожні 5 тіків для балансу продуктивності та досвіду
+        if (level.getGameTime() % 5 == 0) {
             serverPlayer.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
+                // Безпечний поріг: 15% енергії залишається в ядрі
                 int minEnergy = (int) (pEnergy.getMaxEnergy() * 0.15f);
                 int availableTx = pEnergy.getEnergy() - minEnergy;
                 if (availableTx <= 0) return;
 
                 boolean changed = false;
-                for (int i = 0; i < serverPlayer.getInventory().getContainerSize(); i++) {
-                    ItemStack target = serverPlayer.getInventory().getItem(i);
+                for (ItemStack target : serverPlayer.getInventory().items) {
                     if (target.isEmpty() || target == stack) continue;
 
-                    if (target.getCapability(ForgeCapabilities.ENERGY).isPresent()) {
+                    var capOpt = target.getCapability(ForgeCapabilities.ENERGY);
+                    if (capOpt.isPresent()) {
                         final boolean[] success = {false};
-                        target.getCapability(ForgeCapabilities.ENERGY).ifPresent(cap -> {
-                            int maxRfToGive = Math.min(availableTx * 10, 1000);
-                            int acceptedRf = cap.receiveEnergy(maxRfToGive, true);
-                            if (acceptedRf > 0) {
-                                // Гарантуємо мінімум 1 Tx для активації логіки досвіду
-                                int txToExtract = Math.max(1, acceptedRf / 10);
-                                int extractedTx = pEnergy.extractEnergyWithExp(txToExtract, false, serverPlayer);
+                        capOpt.ifPresent(cap -> {
+                            if (cap.canReceive()) {
+                                int maxRfToGive = Math.min(availableTx * 10, 1000);
+                                int acceptedRf = cap.receiveEnergy(maxRfToGive, true);
 
-                                if (extractedTx > 0) {
-                                    cap.receiveEnergy(extractedTx * 10, false);
-                                    success[0] = true;
+                                if (acceptedRf > 0) {
+                                    int txToExtract = (acceptedRf + 9) / 10;
+                                    int extractedTx = pEnergy.extractEnergyWithExp(txToExtract, false, serverPlayer);
+
+                                    if (extractedTx > 0) {
+                                        cap.receiveEnergy(extractedTx * 10, false);
+                                        success[0] = true;
+                                    }
                                 }
                             }
                         });
                         if (success[0]) changed = true;
                     }
                 }
-                if (changed) pEnergy.sync(serverPlayer);
+
+                if (changed) {
+                    pEnergy.sync(serverPlayer);
+                    if (level instanceof ServerLevel serverLevel) {
+                        serverLevel.sendParticles(ParticleTypes.COMPOSTER,
+                                serverPlayer.getX(), serverPlayer.getY() + 1.2, serverPlayer.getZ(),
+                                1, 0.2, 0.2, 0.2, 0.02);
+                    }
+                }
             });
         }
     }
