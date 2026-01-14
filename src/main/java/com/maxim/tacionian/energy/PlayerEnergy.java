@@ -14,14 +14,12 @@ public class PlayerEnergy {
     private int level = 1;
     private int experience = 0;
 
-    // Статуси стабілізації (важливо для EnergyControlResolver)
     private boolean stabilized = false;
     private boolean remoteStabilized = false;
     private boolean remoteNoDrain = false;
 
-    /** ВІДПРАВКА ДАНИХ КЛІЄНТУ (HUD) */
     public void sync(ServerPlayer player) {
-        if (player != null) {
+        if (player != null && !player.level().isClientSide) {
             NetworkHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new EnergySyncPacket(this));
         }
     }
@@ -30,54 +28,43 @@ public class PlayerEnergy {
         if (player.level().isClientSide) return;
         ServerPlayer serverPlayer = (ServerPlayer) player;
 
-        // 1. Пасивна безпека для початківців (до 5 рівня)
+        // Пасивна безпека для новачків
         if (this.level <= 5) {
             int safeLimit = (int) (getMaxEnergy() * 0.95f);
             if (this.energy > safeLimit) this.energy = safeLimit;
         }
 
-        // 2. Пасивна регенерація
+        // Регенерація
         if (!remoteNoDrain && player.tickCount % 20 == 0) {
             int regenMax = (level <= 5) ? (int)(getMaxEnergy() * 0.95f) : getMaxEnergy();
             if (this.energy < regenMax) {
                 receiveEnergy(getRegenRate(), false);
-                // Синхронізуємо після регенерації
-                this.sync(serverPlayer);
             }
         }
 
-        // 3. Логіка штрафів за перевантаження (> 100%)
-        if (this.energy > getMaxEnergy()) {
-            // Штраф: 1 од. досвіду за кожні 10 од. зайвої енергії
-            int overloadPenalty = Math.max(1, (this.energy - getMaxEnergy()) / 10);
-            decreaseExperience(overloadPenalty, serverPlayer);
-
-            if (player.getRandom().nextFloat() < 0.05f) {
-                player.displayClientMessage(Component.translatable("message.tacionian.overload_critical").withStyle(ChatFormatting.RED), true);
-            }
+        // Штраф за перевантаження
+        if (isOverloaded()) {
+            int penalty = Math.max(1, (this.energy - getMaxEnergy()) / 10);
+            decreaseExperience(penalty, serverPlayer);
         }
 
-        // 4. Штраф за критичний дефіцит (< 5%)
+        // Штраф за дефіцит
         if (isCriticalLow() && this.level > 1 && !remoteNoDrain) {
             decreaseExperience(2, serverPlayer);
         }
     }
 
-    // --- ЛОГІКА ДОСВІДУ ТА РІВНІВ ---
-
+    // Методи керування досвідом
     public void addExperience(int amount, ServerPlayer player) {
         this.experience += amount;
-        boolean leveledUp = false;
         while (this.experience >= getRequiredExp()) {
             this.experience -= getRequiredExp();
             this.level++;
-            leveledUp = true;
+            if (player != null) {
+                player.sendSystemMessage(Component.literal("§b[Tacionian] §fРівень підвищено: §6" + this.level));
+            }
         }
-
-        if (leveledUp && player != null) {
-            player.sendSystemMessage(Component.literal("§b[Tacionian] §fВаш рівень ядра підвищено до: §6" + this.level));
-            this.sync(player);
-        }
+        if (player != null) this.sync(player);
     }
 
     public void decreaseExperience(int amount, ServerPlayer player) {
@@ -85,67 +72,40 @@ public class PlayerEnergy {
         if (this.experience < 0) {
             if (this.level > 1) {
                 this.level--;
-                this.experience = (int) (getRequiredExp() * 0.75f); // Ставимо 75% досвіду на новому рівні
+                this.experience = (int) (getRequiredExp() * 0.75f);
                 if (player != null) {
-                    player.sendSystemMessage(Component.translatable("message.tacionian.level_down", this.level)
-                            .withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD));
+                    player.sendSystemMessage(Component.translatable("message.tacionian.level_down", this.level).withStyle(ChatFormatting.DARK_RED));
                 }
             } else {
                 this.experience = 0;
             }
         }
-        if (player != null && player.tickCount % 20 == 0) this.sync(player);
     }
 
-    // --- ГЕТТЕРИ ТА СЕТТЕРИ СТАТУСІВ (Для Resolver) ---
+    // Геттери та Сеттери
+    public void setEnergy(int energy) { this.energy = Math.max(0, energy); }
+    public void setLevel(int level) { this.level = level; }
+    public void setExperience(int experience) { this.experience = experience; }
 
-    public boolean isStabilized() { return stabilized; }
+    public int getEnergy() { return energy; }
+    public int getLevel() { return level; }
+    public int getExperience() { return experience; }
+    public int getMaxEnergy() { return 1000 + (level - 1) * 500; }
+    public int getRequiredExp() { return 500 + (level * 100); }
+    public int getRegenRate() { return 1 + (level / 3); }
+    public int getEnergyPercent() { return (int)((float)energy / getMaxEnergy() * 100); }
+    public boolean isOverloaded() { return this.energy > getMaxEnergy(); }
+    public boolean isCriticalLow() { return getEnergyPercent() < 5; }
+    public int getStabilityThreshold() { return 10; }
+
     public void setStabilized(boolean v) { this.stabilized = v; }
-
-    public boolean isRemoteStabilized() { return remoteStabilized; }
+    public boolean isStabilized() { return stabilized; }
     public void setRemoteStabilized(boolean v) { this.remoteStabilized = v; }
-
-    public boolean isRemoteNoDrain() { return remoteNoDrain; }
+    public boolean isRemoteStabilized() { return remoteStabilized; }
     public void setRemoteNoDrain(boolean v) { this.remoteNoDrain = v; }
+    public boolean isRemoteNoDrain() { return remoteNoDrain; }
 
-    // --- РОЗРАХУНКИ ---
-
-    public int getEnergyPercent() {
-        if (getMaxEnergy() <= 0) return 0;
-        return (int)((float)energy / getMaxEnergy() * 100);
-    }
-
-    public int getMaxEnergy() {
-        return 1000 + (level - 1) * 500;
-    }
-
-    public int getRegenRate() {
-        return 1 + (level / 3);
-    }
-
-    public int getRequiredExp() {
-        return 500 + (level * 100);
-    }
-    public int getStabilityThreshold() {
-        return 10;
-    }
-    public boolean isCriticalLow() {
-        return getEnergyPercent() < 5;
-    }
-
-    public boolean isOverloaded() {
-        return this.energy > getMaxEnergy();
-    }
-
-    // --- МАНІПУЛЯЦІЇ ЕНЕРГІЄЮ ---
-
-    public void setEnergy(int energy) {
-        this.energy = Math.max(0, energy);
-    }
-
-    public void receiveEnergy(int amount, boolean simulate) {
-        if (!simulate) energy += amount;
-    }
+    public void receiveEnergy(int amount, boolean simulate) { if (!simulate) energy += amount; }
 
     public int extractEnergyWithExp(int amount, boolean simulate, ServerPlayer player) {
         int toExt = Math.min(amount, energy);
@@ -162,8 +122,6 @@ public class PlayerEnergy {
         return toExt;
     }
 
-    // --- ЗБЕРЕЖЕННЯ ---
-
     public void saveNBTData(CompoundTag nbt) {
         nbt.putInt("energy", energy);
         nbt.putInt("level", level);
@@ -175,8 +133,4 @@ public class PlayerEnergy {
         this.level = Math.max(1, nbt.getInt("level"));
         this.experience = nbt.getInt("exp");
     }
-
-    public int getEnergy() { return energy; }
-    public int getLevel() { return level; }
-    public int getExperience() { return experience; }
 }

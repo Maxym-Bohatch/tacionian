@@ -29,6 +29,9 @@ public class ModEvents {
 
     @SubscribeEvent
     public static void onPlayerCloned(PlayerEvent.Clone event) {
+        // Оживляємо капсули, щоб зчитати дані зі старого тіла
+        event.getOriginal().reviveCaps();
+
         event.getOriginal().getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(oldStore -> {
             event.getEntity().getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(newStore -> {
                 CompoundTag nbt = new CompoundTag();
@@ -41,29 +44,37 @@ public class ModEvents {
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                energy.sync(player);
-            });
+            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> energy.sync(player));
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> energy.sync(player));
         }
     }
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        if (event.side.isServer() && event.phase == TickEvent.Phase.END) {
-            ServerPlayer player = (ServerPlayer) event.player;
-
+        if (event.side.isServer() && event.phase == TickEvent.Phase.END && event.player instanceof ServerPlayer player) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                // Визначаємо стан (плити, предмети)
+                // 1. Скидання статусів перед перевіркою
+                energy.setStabilized(false);
+                energy.setRemoteStabilized(false);
+                energy.setRemoteNoDrain(false);
+
+                // 2. Обробка предметів та блоків поруч
                 EnergyControlResolver.resolve(player, energy);
 
-                // Регенерація та логіка тіка
+                // 3. Логіка ядра (реген, штрафи)
                 energy.tick(player);
 
-                // Шкода та вогонь
+                // 4. Візуальні та негативні ефекти
                 PlayerEnergyEffects.apply(player, energy);
 
-                // СИНХРОНІЗАЦІЯ з HUD (кожні 10 тіків = 0.5 сек)
-                if (player.level().getGameTime() % 10 == 0) {
+                // 5. Синхронізація (кожні 5 тіків для плавності)
+                if (player.level().getGameTime() % 5 == 0) {
                     energy.sync(player);
                 }
             });
