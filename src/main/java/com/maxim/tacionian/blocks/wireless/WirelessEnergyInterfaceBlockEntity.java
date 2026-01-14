@@ -47,30 +47,54 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
         for (Player player : players) {
             if (player instanceof ServerPlayer serverPlayer) {
                 serverPlayer.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
+                    // Вмикаємо фіолетову індикацію в HUD
                     pEnergy.setRemoteStabilized(true);
 
                     if (pEnergy.getEnergyPercent() > threshold) {
-                        int txToTake = 150;
-                        int extractedTx = pEnergy.extractEnergyWithExp(txToTake, false, serverPlayer);
+                        int txToTakeMax = 150;
+                        int feNeededMax = txToTakeMax * 10;
 
-                        if (extractedTx > 0) {
-                            int remainingFE = extractedTx * 10;
+                        // 1. СИМУЛЯЦІЯ: Перевіряємо, скільки сусіди МОЖУТЬ прийняти
+                        int totalAcceptedByNeighbors = 0;
+                        for (Direction dir : Direction.values()) {
+                            BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+                            if (neighbor != null) {
+                                // Фіксуємо значення для лямбди
+                                final int currentLimit = feNeededMax - totalAcceptedByNeighbors;
+                                if (currentLimit <= 0) break;
 
-                            // Розподіляємо енергію між сусідами
-                            for (Direction dir : Direction.values()) {
-                                if (remainingFE <= 0) break;
-
-                                BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-                                if (neighbor != null) {
-                                    final int toSend = remainingFE;
-                                    int accepted = neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite())
-                                            .map(cap -> cap.canReceive() ? cap.receiveEnergy(toSend, false) : 0)
-                                            .orElse(0);
-                                    remainingFE -= accepted;
-                                }
+                                totalAcceptedByNeighbors += neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite())
+                                        .map(cap -> cap.canReceive() ? cap.receiveEnergy(currentLimit, true) : 0)
+                                        .orElse(0);
                             }
-                            // Обов'язкова синхронізація для HUD
-                            pEnergy.sync(serverPlayer);
+                        }
+
+                        // 2. РЕАЛЬНА ПЕРЕДАЧА: Тільки якщо є куди заливати FE
+                        if (totalAcceptedByNeighbors > 0) {
+                            // Конвертуємо доступне FE в Tx (з округленням вгору)
+                            int txToActuallyExtract = (totalAcceptedByNeighbors + 9) / 10;
+
+                            // Викачуємо енергію з гравця та даємо досвід
+                            int extractedTx = pEnergy.extractEnergyWithExp(txToActuallyExtract, false, serverPlayer);
+
+                            if (extractedTx > 0) {
+                                int feToDistribute = extractedTx * 10;
+
+                                for (Direction dir : Direction.values()) {
+                                    if (feToDistribute <= 0) break;
+
+                                    BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+                                    if (neighbor != null) {
+                                        final int toSend = feToDistribute;
+                                        int accepted = neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite())
+                                                .map(cap -> cap.canReceive() ? cap.receiveEnergy(toSend, false) : 0)
+                                                .orElse(0);
+                                        feToDistribute -= accepted;
+                                    }
+                                }
+                                be.setChanged(); // Повідомляємо грі, що блок змінився
+                                pEnergy.sync(serverPlayer);
+                            }
                         }
                     }
                 });
