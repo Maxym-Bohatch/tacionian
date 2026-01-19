@@ -1,4 +1,5 @@
 {
+  "type": "minecraft:crafting_shaped",
   "pattern": ["SGS", "GRG", " P "],
   "key": {
     "S": { "item": "minecraft:glass" },

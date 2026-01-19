@@ -1,4 +1,5 @@
 {
+  "type": "minecraft:crafting_shaped",
   "pattern": ["QCQ", "CMC", "OIO"],
   "key": {
     "Q": { "item": "minecraft:quartz_block" },

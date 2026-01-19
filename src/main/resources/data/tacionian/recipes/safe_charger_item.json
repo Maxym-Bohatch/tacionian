@@ -1,4 +1,5 @@
 {
+  "type": "minecraft:crafting_shaped",
   "pattern": ["NCN", "CBC", "CMC"],
   "key": {
     "N": { "item": "minecraft:netherite_ingot" },

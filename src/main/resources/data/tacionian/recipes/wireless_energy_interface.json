@@ -1,4 +1,5 @@
 {
+  "type": "minecraft:crafting_shaped",
   "pattern": ["ESE", "GWG", "EOE"],
   "key": {
     "E": { "item": "minecraft:ender_eye" },

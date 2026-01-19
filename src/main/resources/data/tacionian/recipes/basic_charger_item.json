@@ -1,4 +1,5 @@
 {
+  "type": "minecraft:crafting_shaped",
   "pattern": ["G G", "CWC", "GMG"],
   "key": {
     "G": { "item": "minecraft:gold_ingot" },
