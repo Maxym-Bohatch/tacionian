@@ -21,7 +21,7 @@
   "tooltip.tacionian.energy_reservoir.energy": "Energy Stored: §b%s / %s Tx",
   "block.tacionian.wireless_energy_interface": "Wireless Interface",
   "tooltip.tacionian.wireless_interface.desc": "§7Wirelessly extracts energy from nearby players to power adjacent machines.",
-  "tooltip.tacionian.wireless_interface.power": "§7Range blocks: §e10",
+  "tooltip.tacionian.wireless_interface.power": "§7Range blocks: §e20",
   "block.tacionian.basic_charger_block": "Basic Charging Block",
   "tooltip.tacionian.basic_charger_block.desc": "§7Stationary device that transfers player energy to FE machines.",
   "block.tacionian.safe_charger_block": "Safe Charging Block",

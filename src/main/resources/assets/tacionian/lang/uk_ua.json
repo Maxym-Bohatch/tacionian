@@ -21,7 +21,7 @@
   "tooltip.tacionian.energy_reservoir.energy": "Заряд резервуара: §b%s / %s Tx",
   "block.tacionian.wireless_energy_interface": "Бездротовий інтерфейс",
   "tooltip.tacionian.wireless_interface.desc": "§7Дистанційно викачує енергію гравців для живлення сусідніх машин.",
-  "tooltip.tacionian.wireless_interface.power": "§7Радіус блоків: §e10",
+  "tooltip.tacionian.wireless_interface.power": "§7Радіус блоків: §e20",
   "block.tacionian.basic_charger_block": "Базовий зарядний блок",
   "tooltip.tacionian.basic_charger_block.desc": "§7Стаціонарний пристрій, що передає енергію гравця до FE машин.",
   "block.tacionian.safe_charger_block": "Безпечний зарядний блок",
