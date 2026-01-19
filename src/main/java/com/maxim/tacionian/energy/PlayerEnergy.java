@@ -13,7 +13,7 @@ public class PlayerEnergy {
     private int energy = 0;
     private int level = 1;
     private int experience = 0;
-    private float fractionalExperience = 0.0f; // Для точного обліку малих доз досвіду
+    private float fractionalExperience = 0.0f;
 
     private boolean stabilized = false;
     private boolean remoteStabilized = false;
@@ -30,22 +30,23 @@ public class PlayerEnergy {
         ServerPlayer serverPlayer = (ServerPlayer) player;
 
         // Пасивна безпека для новачків (до 5 рівня)
-        if (this.level <= 5) {
+        // Працює тільки якщо ми НЕ підключені до бездротової стабілізації
+        if (this.level <= 5 && !remoteStabilized && !remoteNoDrain) {
             int safeLimit = (int) (getMaxEnergy() * 0.95f);
             if (this.energy > safeLimit) this.energy = safeLimit;
         }
 
         // Регенерація енергії (раз на секунду)
+        // remoteNoDrain вимикає реген, щоб блок міг спокійно забирати енергію
         if (!remoteNoDrain && player.tickCount % 20 == 0) {
             int regenMax = (level <= 5) ? (int)(getMaxEnergy() * 0.95f) : getMaxEnergy();
             if (this.energy < regenMax) {
                 receiveEnergy(getRegenRate(), false);
-                // Синхронізуємо регенерацію, щоб бачити актуальні цифри в HUD
                 this.sync(serverPlayer);
             }
         }
 
-        // Штраф за перевантаження (зменшує досвід)
+        // Штраф за перевантаження
         if (isOverloaded()) {
             float penalty = Math.max(0.1f, (this.energy - getMaxEnergy()) / 100.0f);
             decreaseExperience(penalty, serverPlayer);
@@ -53,23 +54,19 @@ public class PlayerEnergy {
 
         // Штраф за дефіцит енергії
         if (isCriticalLow() && this.level > 1 && !remoteNoDrain) {
-            if (player.tickCount % 40 == 0) { // Штраф капає повільніше, ніж реген
+            if (player.tickCount % 40 == 0) {
                 decreaseExperience(1.0f, serverPlayer);
             }
         }
     }
 
-    // Методи керування досвідом (Дробові значення)
     public void addExperience(float amount, ServerPlayer player) {
         this.fractionalExperience += amount;
-
-        // Перетворюємо накопичений дробовий досвід у цілий
         if (this.fractionalExperience >= 1.0f) {
             int wholeExp = (int) this.fractionalExperience;
             this.experience += wholeExp;
             this.fractionalExperience -= wholeExp;
 
-            // Логіка підвищення рівня
             while (this.experience >= getRequiredExp()) {
                 this.experience -= getRequiredExp();
                 this.level++;
@@ -77,13 +74,12 @@ public class PlayerEnergy {
                     player.sendSystemMessage(Component.literal("§b[Tacionian] §fРівень підвищено: §6" + this.level));
                 }
             }
-            // Синхронізуємо тільки при зміні цілого числа досвіду
             if (player != null) this.sync(player);
         }
     }
 
     public void decreaseExperience(float amount, ServerPlayer player) {
-        this.experience -= (int)amount; // Грубе зменшення для штрафів
+        this.experience -= (int)amount;
         if (this.experience < 0) {
             if (this.level > 1) {
                 this.level--;
@@ -98,7 +94,6 @@ public class PlayerEnergy {
         if (player != null && player.tickCount % 20 == 0) this.sync(player);
     }
 
-    // Геттери та Сеттери
     public void setEnergy(int energy) { this.energy = Math.max(0, energy); }
     public void setLevel(int level) { this.level = Math.max(1, level); }
     public void setExperience(int experience) { this.experience = experience; }
@@ -113,9 +108,8 @@ public class PlayerEnergy {
 
     public boolean isOverloaded() { return this.energy > getMaxEnergy(); }
     public boolean isCriticalLow() { return getEnergyPercent() < 5; }
-    public int getStabilityThreshold() {
-        return 10;
-    }
+    public int getStabilityThreshold() { return 10; }
+
     public void setStabilized(boolean v) { this.stabilized = v; }
     public boolean isStabilized() { return stabilized; }
     public void setRemoteStabilized(boolean v) { this.remoteStabilized = v; }
@@ -131,8 +125,6 @@ public class PlayerEnergy {
         int toExt = Math.min(amount, energy);
         if (!simulate && toExt > 0) {
             energy -= toExt;
-            // Використовуємо дробове число (0.5f), щоб 1 Tx давав 0.5 XP
-            // Це виключає проблему "нульового досвіду" при малих передачах
             addExperience(toExt * 0.5f, player);
         }
         return toExt;

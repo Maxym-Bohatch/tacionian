@@ -34,9 +34,9 @@ public class ModBlocks {
             () -> new EnergyReservoirBlock(BlockBehaviour.Properties.copy(Blocks.DIAMOND_BLOCK).requiresCorrectToolForDrops()));
 
     // Бездротовий інтерфейс (змінено назву змінної на WIRELESS_ENERGY_INTERFACE для узгодження)
+    // Заміни тільки цей рядок у ModBlocks.java:
     public static final RegistryObject<Block> WIRELESS_ENERGY_INTERFACE = registerBlock("wireless_energy_interface",
-            () -> new WirelessEnergyInterfaceBlock(BlockBehaviour.Properties.copy(Blocks.NETHERITE_BLOCK).noOcclusion()));
-
+            () -> new WirelessEnergyInterfaceBlock(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).noOcclusion().requiresCorrectToolForDrops()));
     private static <T extends Block> RegistryObject<T> registerBlock(String name, Supplier<T> block) {
         RegistryObject<T> toReturn = BLOCKS.register(name, block);
         ModItems.ITEMS.register(name, () -> new TacionianBlockItem(toReturn.get(), new Item.Properties()));

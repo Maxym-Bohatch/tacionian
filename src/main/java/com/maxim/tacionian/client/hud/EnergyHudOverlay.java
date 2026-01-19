@@ -27,16 +27,16 @@ public class EnergyHudOverlay {
         boolean isRemote = ClientPlayerEnergy.isRemoteStabilized();
 
         if (ClientPlayerEnergy.isOverloaded() || ClientPlayerEnergy.isCriticalLow()) {
-            baseColor = 0xFFFF4444; // Червоний
+            baseColor = 0xFFFF4444; // Червоний (Пріоритет 1: Небезпека)
             isDanger = true;
-        } else if (ClientPlayerEnergy.isStabilized()) {
-            baseColor = 0xFF44FF44; // Зелений
-            isStable = true;
         } else if (isRemote) {
-            baseColor = 0xFFAA44FF; // Фіолетовий
+            baseColor = 0xFFAA44FF; // Фіолетовий (Пріоритет 2: Бездротова мережа)
+            isStable = true;
+        } else if (ClientPlayerEnergy.isStabilized()) {
+            baseColor = 0xFF44FF44; // Зелений (Пріоритет 3: Портативний стабілізатор)
             isStable = true;
         } else {
-            baseColor = 0xFF00A0FF; // Блакитний
+            baseColor = 0xFF00A0FF; // Блакитний (Стандарт)
         }
 
         // Анімація кольору

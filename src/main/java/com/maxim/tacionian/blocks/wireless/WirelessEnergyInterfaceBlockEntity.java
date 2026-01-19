@@ -17,7 +17,7 @@ import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import java.util.List;
 
 public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
-    private int mode = 0; // 0:Safe, 1:Balanced, 2:Performance, 3:Unrestricted
+    private int mode = 0; // 0:Safe (75%), 1:Balanced (40%), 2:Performance (15%), 3:Unrestricted (0%)
 
     public WirelessEnergyInterfaceBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.WIRELESS_BE.get(), pos, state);
@@ -32,11 +32,12 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, WirelessEnergyInterfaceBlockEntity be) {
-        if (level.isClientSide || level.getGameTime() % 10 != 0) return;
+        if (level.isClientSide) return;
 
-        AABB area = new AABB(pos).inflate(10);
+        AABB area = new AABB(pos).inflate(20);
         List<Player> players = level.getEntitiesOfClass(Player.class, area);
 
+        // Визначаємо поріг згідно з режимом
         int threshold = switch (be.mode) {
             case 0 -> 75;
             case 1 -> 40;
@@ -47,58 +48,73 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
         for (Player player : players) {
             if (player instanceof ServerPlayer serverPlayer) {
                 serverPlayer.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
-                    // Вмикаємо фіолетову індикацію в HUD
+                    // 1. Фіолетовий худ (зв'язок встановлено)
                     pEnergy.setRemoteStabilized(true);
 
-                    if (pEnergy.getEnergyPercent() > threshold) {
-                        int txToTakeMax = 150;
-                        int feNeededMax = txToTakeMax * 10;
+                    // 2. Перевірка потреб бази
+                    boolean machinesNeedPower = checkMachinesNeedPower(level, pos);
+                    int currentPercent = pEnergy.getEnergyPercent();
 
-                        // 1. СИМУЛЯЦІЯ: Перевіряємо, скільки сусіди МОЖУТЬ прийняти
-                        int totalAcceptedByNeighbors = 0;
-                        for (Direction dir : Direction.values()) {
-                            BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-                            if (neighbor != null) {
-                                // Фіксуємо значення для лямбди
-                                final int currentLimit = feNeededMax - totalAcceptedByNeighbors;
-                                if (currentLimit <= 0) break;
+                    if (machinesNeedPower) {
+                        // Якщо база потребує енергії — дозволяємо реген гравця (працюємо як генератор)
+                        pEnergy.setRemoteNoDrain(false);
 
-                                totalAcceptedByNeighbors += neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite())
-                                        .map(cap -> cap.canReceive() ? cap.receiveEnergy(currentLimit, true) : 0)
-                                        .orElse(0);
+                        // Викачуємо тільки якщо енергія вище ліміту режиму
+                        if (level.getGameTime() % 10 == 0) {
+                            if (currentPercent > threshold) {
+                                processEnergyTransfer(level, pos, serverPlayer, pEnergy);
                             }
+                            pEnergy.sync(serverPlayer);
+                        }
+                    } else {
+                        // Якщо база заповнена — блокуємо реген вище ліміту режиму (захист від перевантаження)
+                        if (currentPercent > threshold) {
+                            pEnergy.setRemoteNoDrain(true);
+                        } else {
+                            pEnergy.setRemoteNoDrain(false);
                         }
 
-                        // 2. РЕАЛЬНА ПЕРЕДАЧА: Тільки якщо є куди заливати FE
-                        if (totalAcceptedByNeighbors > 0) {
-                            // Конвертуємо доступне FE в Tx (з округленням вгору)
-                            int txToActuallyExtract = (totalAcceptedByNeighbors + 9) / 10;
-
-                            // Викачуємо енергію з гравця та даємо досвід
-                            int extractedTx = pEnergy.extractEnergyWithExp(txToActuallyExtract, false, serverPlayer);
-
-                            if (extractedTx > 0) {
-                                int feToDistribute = extractedTx * 10;
-
-                                for (Direction dir : Direction.values()) {
-                                    if (feToDistribute <= 0) break;
-
-                                    BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-                                    if (neighbor != null) {
-                                        final int toSend = feToDistribute;
-                                        int accepted = neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite())
-                                                .map(cap -> cap.canReceive() ? cap.receiveEnergy(toSend, false) : 0)
-                                                .orElse(0);
-                                        feToDistribute -= accepted;
-                                    }
-                                }
-                                be.setChanged(); // Повідомляємо грі, що блок змінився
-                                pEnergy.sync(serverPlayer);
-                            }
+                        if (level.getGameTime() % 10 == 0) {
+                            pEnergy.sync(serverPlayer);
                         }
                     }
                 });
             }
+        }
+    }
+
+    private static boolean checkMachinesNeedPower(Level level, BlockPos pos) {
+        for (Direction dir : Direction.values()) {
+            BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+            if (neighbor != null) {
+                boolean canAccept = neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite())
+                        .map(cap -> cap.canReceive() && cap.receiveEnergy(10, true) > 0)
+                        .orElse(false);
+                if (canAccept) return true;
+            }
+        }
+        return false;
+    }
+
+    private static void processEnergyTransfer(Level level, BlockPos pos, ServerPlayer serverPlayer, com.maxim.tacionian.energy.PlayerEnergy pEnergy) {
+        int txToTakeMax = 150;
+        int feNeededMax = txToTakeMax * 10;
+        int totalAcceptedByNeighbors = 0;
+
+        for (Direction dir : Direction.values()) {
+            BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+            if (neighbor != null) {
+                final int currentLimit = feNeededMax - totalAcceptedByNeighbors;
+                if (currentLimit <= 0) break;
+                totalAcceptedByNeighbors += neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite())
+                        .map(cap -> cap.receiveEnergy(currentLimit, false))
+                        .orElse(0);
+            }
+        }
+
+        if (totalAcceptedByNeighbors > 0) {
+            int txToActuallyExtract = (totalAcceptedByNeighbors + 9) / 10;
+            pEnergy.extractEnergyWithExp(txToActuallyExtract, false, serverPlayer);
         }
     }
 
