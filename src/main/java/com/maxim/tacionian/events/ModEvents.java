@@ -59,21 +59,18 @@ public class ModEvents {
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.side.isServer() && event.phase == TickEvent.Phase.END && event.player instanceof ServerPlayer player) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                // 1. Скидання статусів перед перевіркою
-                energy.setStabilized(false);
-                energy.setRemoteStabilized(false);
-                energy.setRemoteNoDrain(false);
+                // МИ ВИДАЛИ ТУТ energy.setRemoteStabilized(false), щоб не було конфлікту з блоками
 
-                // 2. Обробка предметів та блоків поруч
+                // Обробка предметів та блоків поруч
                 EnergyControlResolver.resolve(player, energy);
 
-                // 3. Логіка ядра (реген, штрафи)
+                // Логіка ядра (реген, штрафи + зменшення таймерів)
                 energy.tick(player);
 
-                // 4. Візуальні та негативні ефекти
+                // Візуальні ефекти
                 PlayerEnergyEffects.apply(player, energy);
 
-                // 5. Синхронізація (кожні 5 тіків для плавності)
+                // Синхронізація
                 if (player.level().getGameTime() % 5 == 0) {
                     energy.sync(player);
                 }

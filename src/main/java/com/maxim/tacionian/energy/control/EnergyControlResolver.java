@@ -15,14 +15,14 @@ public class EnergyControlResolver {
         // 1. Пошук стабілізатора в інвентарі
         for (ItemStack stack : player.getInventory().items) {
             if (stack.getItem() instanceof EnergyStabilizerItem stabilizer) {
-                energy.setStabilized(true);
+                energy.setStabilized(true); // Заводить таймер
                 int mode = stack.getOrCreateTag().getInt("Mode");
                 int threshold = (mode == 0) ? 75 : (mode == 1) ? 40 : (mode == 2) ? 15 : 0;
 
                 if (energy.getEnergyPercent() > threshold) {
-                    energy.setRemoteNoDrain(true);
+                    energy.setRemoteNoDrain(true); // Заводить таймер
                 }
-                break; // Знайшли один — виходимо
+                break;
             }
         }
 
@@ -31,7 +31,7 @@ public class EnergyControlResolver {
         BlockState state = player.level().getBlockState(pos);
 
         if (state.is(ModBlocks.STABILIZATION_PLATE.get())) {
-            energy.setRemoteStabilized(true);
+            energy.setRemoteStabilized(true); // Заводить таймер
             if (player.isCrouching() && energy.getEnergyPercent() > 5) {
                 energy.extractEnergyPure(40, false);
                 if (player.tickCount % 4 == 0) {
@@ -40,7 +40,7 @@ public class EnergyControlResolver {
             }
         }
 
-        // 3. Загальний захист від перевантаження
+        // 3. Загальний захист від перевантаження (тільки якщо активний будь-який таймер стабілізації)
         if ((energy.isStabilized() || energy.isRemoteStabilized()) && energy.isOverloaded()) {
             energy.setEnergy((int)(energy.getMaxEnergy() * 0.95f));
         }

@@ -19,6 +19,11 @@ public class PlayerEnergy {
     private boolean remoteStabilized = false;
     private boolean remoteNoDrain = false;
 
+    // Таймери для запобігання мерехтіння HUD
+    private int stabilizedTimer = 0;
+    private int remoteStabilizedTimer = 0;
+    private int remoteNoDrainTimer = 0;
+
     public void sync(ServerPlayer player) {
         if (player != null && !player.level().isClientSide) {
             NetworkHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new EnergySyncPacket(this));
@@ -29,15 +34,23 @@ public class PlayerEnergy {
         if (player.level().isClientSide) return;
         ServerPlayer serverPlayer = (ServerPlayer) player;
 
-        // Пасивна безпека для новачків (до 5 рівня)
-        // Працює тільки якщо ми НЕ підключені до бездротової стабілізації
+        // Оновлення логічних станів на основі таймерів
+        this.stabilized = (stabilizedTimer > 0);
+        this.remoteStabilized = (remoteStabilizedTimer > 0);
+        this.remoteNoDrain = (remoteNoDrainTimer > 0);
+
+        // Зменшення таймерів
+        if (stabilizedTimer > 0) stabilizedTimer--;
+        if (remoteStabilizedTimer > 0) remoteStabilizedTimer--;
+        if (remoteNoDrainTimer > 0) remoteNoDrainTimer--;
+
+        // Пасивна безпека для новачків
         if (this.level <= 5 && !remoteStabilized && !remoteNoDrain) {
             int safeLimit = (int) (getMaxEnergy() * 0.95f);
             if (this.energy > safeLimit) this.energy = safeLimit;
         }
 
-        // Регенерація енергії (раз на секунду)
-        // remoteNoDrain вимикає реген, щоб блок міг спокійно забирати енергію
+        // Регенерація енергії
         if (!remoteNoDrain && player.tickCount % 20 == 0) {
             int regenMax = (level <= 5) ? (int)(getMaxEnergy() * 0.95f) : getMaxEnergy();
             if (this.energy < regenMax) {
@@ -46,13 +59,11 @@ public class PlayerEnergy {
             }
         }
 
-        // Штраф за перевантаження
         if (isOverloaded()) {
             float penalty = Math.max(0.1f, (this.energy - getMaxEnergy()) / 100.0f);
             decreaseExperience(penalty, serverPlayer);
         }
 
-        // Штраф за дефіцит енергії
         if (isCriticalLow() && this.level > 1 && !remoteNoDrain) {
             if (player.tickCount % 40 == 0) {
                 decreaseExperience(1.0f, serverPlayer);
@@ -60,19 +71,30 @@ public class PlayerEnergy {
         }
     }
 
+    // Оновлені сетери, що використовують таймери
+    public void setStabilized(boolean v) {
+        if (v) this.stabilizedTimer = 10;
+    }
+
+    public void setRemoteStabilized(boolean v) {
+        if (v) this.remoteStabilizedTimer = 10;
+    }
+
+    public void setRemoteNoDrain(boolean v) {
+        if (v) this.remoteNoDrainTimer = 10;
+    }
+
+    // Решта методів без змін
     public void addExperience(float amount, ServerPlayer player) {
         this.fractionalExperience += amount;
         if (this.fractionalExperience >= 1.0f) {
             int wholeExp = (int) this.fractionalExperience;
             this.experience += wholeExp;
             this.fractionalExperience -= wholeExp;
-
             while (this.experience >= getRequiredExp()) {
                 this.experience -= getRequiredExp();
                 this.level++;
-                if (player != null) {
-                    player.sendSystemMessage(Component.literal("§b[Tacionian] §fРівень підвищено: §6" + this.level));
-                }
+                if (player != null) player.sendSystemMessage(Component.literal("§b[Tacionian] §fРівень підвищено: §6" + this.level));
             }
             if (player != null) this.sync(player);
         }
@@ -84,12 +106,8 @@ public class PlayerEnergy {
             if (this.level > 1) {
                 this.level--;
                 this.experience = (int) (getRequiredExp() * 0.75f);
-                if (player != null) {
-                    player.sendSystemMessage(Component.translatable("message.tacionian.level_down", this.level).withStyle(ChatFormatting.DARK_RED));
-                }
-            } else {
-                this.experience = 0;
-            }
+                if (player != null) player.sendSystemMessage(Component.translatable("message.tacionian.level_down", this.level).withStyle(ChatFormatting.DARK_RED));
+            } else { this.experience = 0; }
         }
         if (player != null && player.tickCount % 20 == 0) this.sync(player);
     }
@@ -97,7 +115,6 @@ public class PlayerEnergy {
     public void setEnergy(int energy) { this.energy = Math.max(0, energy); }
     public void setLevel(int level) { this.level = Math.max(1, level); }
     public void setExperience(int experience) { this.experience = experience; }
-
     public int getEnergy() { return energy; }
     public int getLevel() { return level; }
     public int getExperience() { return experience; }
@@ -105,22 +122,14 @@ public class PlayerEnergy {
     public int getRequiredExp() { return 500 + (level * 100); }
     public int getRegenRate() { return 1 + (level / 3); }
     public int getEnergyPercent() { return (int)((float)energy / getMaxEnergy() * 100); }
-
+    public int getStabilityThreshold() {return 10;}
     public boolean isOverloaded() { return this.energy > getMaxEnergy(); }
     public boolean isCriticalLow() { return getEnergyPercent() < 5; }
-    public int getStabilityThreshold() { return 10; }
-
-    public void setStabilized(boolean v) { this.stabilized = v; }
     public boolean isStabilized() { return stabilized; }
-    public void setRemoteStabilized(boolean v) { this.remoteStabilized = v; }
     public boolean isRemoteStabilized() { return remoteStabilized; }
-    public void setRemoteNoDrain(boolean v) { this.remoteNoDrain = v; }
     public boolean isRemoteNoDrain() { return remoteNoDrain; }
 
-    public void receiveEnergy(int amount, boolean simulate) {
-        if (!simulate) energy += amount;
-    }
-
+    public void receiveEnergy(int amount, boolean simulate) { if (!simulate) energy += amount; }
     public int extractEnergyWithExp(int amount, boolean simulate, ServerPlayer player) {
         int toExt = Math.min(amount, energy);
         if (!simulate && toExt > 0) {
@@ -129,24 +138,17 @@ public class PlayerEnergy {
         }
         return toExt;
     }
-
     public int extractEnergyPure(int amount, boolean simulate) {
         int toExt = Math.min(amount, this.energy);
         if (!simulate) this.energy -= toExt;
         return toExt;
     }
-
     public void saveNBTData(CompoundTag nbt) {
-        nbt.putInt("energy", energy);
-        nbt.putInt("level", level);
-        nbt.putInt("exp", experience);
-        nbt.putFloat("fractionalExp", fractionalExperience);
+        nbt.putInt("energy", energy); nbt.putInt("level", level);
+        nbt.putInt("exp", experience); nbt.putFloat("fractionalExp", fractionalExperience);
     }
-
     public void loadNBTData(CompoundTag nbt) {
-        this.energy = nbt.getInt("energy");
-        this.level = Math.max(1, nbt.getInt("level"));
-        this.experience = nbt.getInt("exp");
-        this.fractionalExperience = nbt.getFloat("fractionalExp");
+        this.energy = nbt.getInt("energy"); this.level = Math.max(1, nbt.getInt("level"));
+        this.experience = nbt.getInt("exp"); this.fractionalExperience = nbt.getFloat("fractionalExp");
     }
 }
