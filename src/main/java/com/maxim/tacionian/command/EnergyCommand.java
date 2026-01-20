@@ -34,13 +34,14 @@ public class EnergyCommand {
                 .then(Commands.literal("level")
                         .then(Commands.literal("set")
                                 .then(Commands.argument("targets", EntityArgument.players())
-                                        .then(Commands.argument("level", IntegerArgumentType.integer(1, 10))
+                                        // ВИПРАВЛЕНО: Змінено ліміт з 10 на 100
+                                        .then(Commands.argument("level", IntegerArgumentType.integer(1, PlayerEnergy.MAX_LEVEL))
                                                 .executes(context -> setLevel(context.getSource(), EntityArgument.getPlayers(context, "targets"), IntegerArgumentType.getInteger(context, "level")))
                                         )
                                 )
                         )
                 )
-                // НОВЕ: ДОСВІД (EXP)
+                // ДОСВІД (EXP)
                 .then(Commands.literal("exp")
                         .then(Commands.literal("add")
                                 .then(Commands.argument("targets", EntityArgument.players())
@@ -57,13 +58,37 @@ public class EnergyCommand {
                                 )
                         )
                 )
-                // НОВЕ: ПОВНЕ СКИНУТТЯ (RESET)
+                // RESET
                 .then(Commands.literal("reset")
                         .then(Commands.argument("targets", EntityArgument.players())
                                 .executes(context -> resetStats(context.getSource(), EntityArgument.getPlayers(context, "targets")))
                         )
                 )
         );
+    }
+
+    // ... (setEnergy залишається без змін)
+
+    private static int setLevel(CommandSourceStack source, Collection<ServerPlayer> targets, int level) {
+        for (ServerPlayer player : targets) {
+            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
+                // Встановлюємо новий рівень
+                energy.setLevel(level);
+
+                // Скидаємо досвід та дробовий досвід в нуль для чистоти рівня
+                energy.setExperience(0);
+                // Якщо у тебе в PlayerEnergy є доступ до fractionalExperience,
+                // можна додати метод для його скидання, але зазвичай вистачає Experience
+
+                // Одразу заповнюємо енергію до нового максимуму
+                energy.setEnergy(energy.getMaxEnergy());
+
+                // Синхронізуємо з клієнтом
+                sync(player, energy);
+            });
+        }
+        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Рівень встановлено на §6" + level + " §7(Енергія заповнена)"), true);
+        return targets.size();
     }
 
     private static int setEnergy(CommandSourceStack source, Collection<ServerPlayer> targets, int amount) {
@@ -74,17 +99,6 @@ public class EnergyCommand {
             });
         }
         source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Енергію встановлено на §f" + amount), true);
-        return targets.size();
-    }
-
-    private static int setLevel(CommandSourceStack source, Collection<ServerPlayer> targets, int level) {
-        for (ServerPlayer player : targets) {
-            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                energy.setLevel(level);
-                sync(player, energy);
-            });
-        }
-        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Рівень встановлено на §6" + level), true);
         return targets.size();
     }
 
@@ -102,7 +116,7 @@ public class EnergyCommand {
     private static int setExp(CommandSourceStack source, Collection<ServerPlayer> targets, int amount) {
         for (ServerPlayer player : targets) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                energy.setExperience(amount); // Тепер цей метод використовується!
+                energy.setExperience(amount);
                 sync(player, energy);
             });
         }
@@ -119,7 +133,7 @@ public class EnergyCommand {
                 sync(player, energy);
             });
         }
-        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Всі показники скинуто для §f" + targets.size() + " §7гравців."), true);
+        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Всі показники скинуто."), true);
         return targets.size();
     }
 

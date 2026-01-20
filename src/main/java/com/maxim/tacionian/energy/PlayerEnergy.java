@@ -10,6 +10,10 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.network.PacketDistributor;
 
 public class PlayerEnergy {
+    // Константи балансу
+    public static final int MAX_LEVEL = 100; // Тепер ліміт 100
+    public static final float EXP_MULTIPLIER = 0.5f;
+
     private int energy = 0;
     private int level = 1;
     private int experience = 0;
@@ -19,7 +23,6 @@ public class PlayerEnergy {
     private boolean remoteStabilized = false;
     private boolean remoteNoDrain = false;
 
-    // Таймери для запобігання мерехтіння HUD
     private int stabilizedTimer = 0;
     private int remoteStabilizedTimer = 0;
     private int remoteNoDrainTimer = 0;
@@ -34,38 +37,38 @@ public class PlayerEnergy {
         if (player.level().isClientSide) return;
         ServerPlayer serverPlayer = (ServerPlayer) player;
 
-        // Оновлення логічних станів на основі таймерів
         this.stabilized = (stabilizedTimer > 0);
         this.remoteStabilized = (remoteStabilizedTimer > 0);
         this.remoteNoDrain = (remoteNoDrainTimer > 0);
 
-        // Зменшення таймерів
         if (stabilizedTimer > 0) stabilizedTimer--;
         if (remoteStabilizedTimer > 0) remoteStabilizedTimer--;
         if (remoteNoDrainTimer > 0) remoteNoDrainTimer--;
 
-        // Пасивна безпека для новачків (рівень 5 і нижче)
-        if (this.level <= 5 && !remoteStabilized && !remoteNoDrain) {
+        // Пасивна безпека (обмежена лише початковими рівнями)
+        if (this.level <= 3 && !remoteStabilized && !remoteNoDrain) {
             int safeLimit = (int) (getMaxEnergy() * 0.95f);
             if (this.energy > safeLimit) this.energy = safeLimit;
         }
 
         // Регенерація енергії
         if (!remoteNoDrain && player.tickCount % 20 == 0) {
-            int regenMax = (level <= 5) ? (int)(getMaxEnergy() * 0.95f) : getMaxEnergy();
-            if (this.energy < regenMax) {
+            int regenTarget = getMaxEnergy();
+            // На низьких рівнях регенеруємо лише до 90%, щоб стимулювати гравця шукати джерела
+            if (this.level < 5) regenTarget = (int)(getMaxEnergy() * 0.9f);
+
+            if (this.energy < regenTarget) {
                 receiveEnergy(getRegenRate(), false);
                 this.sync(serverPlayer);
             }
         }
 
-        // Штраф до досвіду при перевантаженні
+        // Штрафи
         if (isOverloaded()) {
             float penalty = Math.max(0.1f, (this.energy - getMaxEnergy()) / 100.0f);
             decreaseExperience(penalty, serverPlayer);
         }
 
-        // Штраф при критично низькій енергії
         if (isCriticalLow() && this.level > 1 && !remoteNoDrain) {
             if (player.tickCount % 40 == 0) {
                 decreaseExperience(1.0f, serverPlayer);
@@ -73,22 +76,12 @@ public class PlayerEnergy {
         }
     }
 
-    // Сетери з таймерами для зовнішніх блоків/предметів
-    public void setStabilized(boolean v) {
-        if (v) this.stabilizedTimer = 15; // Трохи збільшено для надійності
-    }
+    public void setStabilized(boolean v) { if (v) this.stabilizedTimer = 15; }
+    public void setRemoteStabilized(boolean v) { if (v) this.remoteStabilizedTimer = 15; }
+    public void setRemoteNoDrain(boolean v) { if (v) this.remoteNoDrainTimer = 15; }
 
-    public void setRemoteStabilized(boolean v) {
-        if (v) this.remoteStabilizedTimer = 15;
-    }
-
-    public void setRemoteNoDrain(boolean v) {
-        if (v) this.remoteNoDrainTimer = 15;
-    }
-
-    // Система досвіду та рівнів
     public void addExperience(float amount, ServerPlayer player) {
-        if (amount <= 0) return;
+        if (amount <= 0 || this.level >= MAX_LEVEL) return;
         this.fractionalExperience += amount;
 
         if (this.fractionalExperience >= 1.0f) {
@@ -96,11 +89,10 @@ public class PlayerEnergy {
             this.experience += wholeExp;
             this.fractionalExperience -= wholeExp;
 
-            while (this.experience >= getRequiredExp()) {
+            while (this.experience >= getRequiredExp() && this.level < MAX_LEVEL) {
                 this.experience -= getRequiredExp();
                 this.level++;
                 if (player != null) {
-                    // Використовуємо локалізацію для повідомлення про рівень
                     player.sendSystemMessage(Component.translatable("message.tacionian.level_up", this.level)
                             .withStyle(ChatFormatting.AQUA));
                 }
@@ -114,7 +106,6 @@ public class PlayerEnergy {
         if (this.experience < 0) {
             if (this.level > 1) {
                 this.level--;
-                // Повертаємо 75% досвіду попереднього рівня, щоб не падати в нуль
                 this.experience = (int) (getRequiredExp() * 0.75f);
                 if (player != null) {
                     player.sendSystemMessage(Component.translatable("message.tacionian.level_down", this.level)
@@ -127,27 +118,33 @@ public class PlayerEnergy {
         if (player != null && player.tickCount % 20 == 0) this.sync(player);
     }
 
-    // Базові сетери (використовуються в командах)
     public void setEnergy(int energy) { this.energy = Math.max(0, energy); }
-    public void setLevel(int level) { this.level = Math.max(1, level); }
+    public void setLevel(int level) { this.level = Math.min(Math.max(1, level), MAX_LEVEL); }
     public void setExperience(int experience) { this.experience = Math.max(0, experience); }
 
-    // Геттери та розрахунки
     public int getEnergy() { return energy; }
     public int getLevel() { return level; }
     public int getExperience() { return experience; }
-    public int getMaxEnergy() { return 1000 + (level - 1) * 500; }
-    public int getRequiredExp() { return 500 + (level * 100); }
-    public int getRegenRate() { return 1 + (level / 3); }
-    public int getEnergyPercent() { return (int)((float)energy / getMaxEnergy() * 100); }
 
+    // Покращена математика росту
+    public int getMaxEnergy() { return 1000 + (level - 1) * 500; }
+    public int getRequiredExp() {
+        // Експоненціальне ускладнення після 20 рівня
+        if (level < 20) return 500 + (level * 100);
+        return 2500 + (level * 250);
+    }
+
+    public int getRegenRate() {
+        return 1 + (level / 5); // Повільніша регенерація для балансу
+    }
+
+    public int getEnergyPercent() { return (int)((float)energy / getMaxEnergy() * 100); }
     public boolean isOverloaded() { return this.energy > getMaxEnergy(); }
     public boolean isCriticalLow() { return getEnergyPercent() < 5; }
     public boolean isStabilized() { return stabilized; }
     public boolean isRemoteStabilized() { return remoteStabilized; }
     public boolean isRemoteNoDrain() { return remoteNoDrain; }
 
-    // Методи взаємодії з енергією
     public void receiveEnergy(int amount, boolean simulate) {
         if (!simulate) energy += amount;
     }
@@ -156,7 +153,8 @@ public class PlayerEnergy {
         int toExt = Math.min(amount, energy);
         if (!simulate && toExt > 0) {
             energy -= toExt;
-            addExperience(toExt * 0.5f, player);
+            // Досвід дається за використання енергії
+            addExperience(toExt * EXP_MULTIPLIER, player);
         }
         return toExt;
     }
@@ -167,7 +165,6 @@ public class PlayerEnergy {
         return toExt;
     }
 
-    // Збереження даних (NBT)
     public void saveNBTData(CompoundTag nbt) {
         nbt.putInt("energy", energy);
         nbt.putInt("level", level);
@@ -177,7 +174,7 @@ public class PlayerEnergy {
 
     public void loadNBTData(CompoundTag nbt) {
         this.energy = nbt.getInt("energy");
-        this.level = Math.max(1, nbt.getInt("level"));
+        this.level = Math.min(Math.max(1, nbt.getInt("level")), MAX_LEVEL);
         this.experience = nbt.getInt("exp");
         this.fractionalExperience = nbt.getFloat("fractionalExp");
     }
