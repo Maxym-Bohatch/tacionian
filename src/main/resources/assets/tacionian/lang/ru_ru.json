@@ -55,5 +55,8 @@
   "tooltip.tacionian.active": "§aСТАТУС: АКТИВНО",
   "tooltip.tacionian.inactive": "§cСТАТУС: НЕАКТИВНО",
   "tooltip.tacionian.level": "Ур. ядра",
-  "death.attack.tacionian.energy": "Ядро %1$s коллапсировало из-за энергетической перегрузки"
+  "death.attack.tacionian.energy": "Ядро %1$s коллапсировало из-за энергетической перегрузки",
+  "subtitles.tacionian.energy_charge": "Поток тахионной энергии",
+  "subtitles.tacionian.mode_switch": "Устройство щелкает",
+  "subtitles.tacionian.tachyon_hum": "Гудение тахионного ядра"
 }

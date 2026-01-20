@@ -30,6 +30,7 @@ public class Tacionian {
         ModBlockEntities.register(modBus);
         ModItems.ITEMS.register(modBus);
         ModCreativeTab.register(modBus);
+        ModSounds.SOUND_EVENTS.register(modBus);
 
         modBus.addListener(this::commonSetup);
         modBus.addListener(this::registerCaps);

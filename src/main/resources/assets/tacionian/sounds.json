@@ -1,0 +1,23 @@
+{
+  "energy_charge": {
+    "subtitle": "subtitles.tacionian.energy_charge",
+    "sounds": [
+      "tacionian:energy_charge"
+    ]
+  },
+  "mode_switch": {
+    "subtitle": "subtitles.tacionian.mode_switch",
+    "sounds": [
+      "tacionian:mode_switch"
+    ]
+  },
+  "tachyon_hum": {
+    "subtitle": "subtitles.tacionian.tachyon_hum",
+    "sounds": [
+      {
+        "name": "tacionian:tachyon_hum",
+        "stream": true
+      }
+    ]
+  }
+}

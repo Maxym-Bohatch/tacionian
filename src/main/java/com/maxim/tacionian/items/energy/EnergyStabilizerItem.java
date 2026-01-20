@@ -1,9 +1,11 @@
 package com.maxim.tacionian.items.energy;
 
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
+import com.maxim.tacionian.register.ModSounds;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.Entity;
@@ -19,46 +21,25 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 public class EnergyStabilizerItem extends Item {
-    public EnergyStabilizerItem(Properties props) {
-        super(props.stacksTo(1));
-    }
+    public EnergyStabilizerItem(Properties props) { super(props.stacksTo(1)); }
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-
-        // Shift + ПКМ: Перемикання режимів
         if (player.isShiftKeyDown()) {
             int mode = (stack.getOrCreateTag().getInt("Mode") + 1) % 4;
             stack.getOrCreateTag().putInt("Mode", mode);
+            // ВЛАСНИЙ ЗВУК: Перемикання режиму
+            level.playSound(null, player.blockPosition(), ModSounds.MODE_SWITCH.get(), SoundSource.PLAYERS, 0.5f, 0.8f + (mode * 0.2f));
             if (!level.isClientSide) {
                 player.displayClientMessage(Component.translatable("message.tacionian.mode_switched", getModeName(mode)), true);
             }
             return InteractionResultHolder.success(stack);
         }
-
-        // Просто ПКМ: Починаємо затискати (використовувати)
         player.startUsingItem(hand);
         return InteractionResultHolder.consume(stack);
     }
 
-    // ЛОГІКА В ІНВЕНТАРІ (Працює пасивно)
-    @Override
-    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slot, boolean isSelected) {
-        if (!level.isClientSide && entity instanceof ServerPlayer player) {
-            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
-                int mode = stack.getOrCreateTag().getInt("Mode");
-                int threshold = getThresholdForMode(mode);
-
-                // Якщо енергія вища за поріг — блокуємо регенерацію ядра
-                if (pEnergy.getEnergyPercent() > threshold) {
-                    pEnergy.setRemoteNoDrain(true);
-                }
-            });
-        }
-    }
-
-    // ЛОГІКА ПРИ ЗАЖАТТІ ПКМ (Активний злив)
     @Override
     public void onUseTick(Level level, LivingEntity entity, ItemStack stack, int count) {
         if (!level.isClientSide && entity instanceof ServerPlayer player) {
@@ -66,19 +47,17 @@ public class EnergyStabilizerItem extends Item {
                 int mode = stack.getOrCreateTag().getInt("Mode");
                 int threshold = getThresholdForMode(mode);
 
-                // Зливаємо енергію тільки якщо вона вища за поріг
                 if (pEnergy.getEnergyPercent() > threshold) {
-                    // 1. Забираємо енергію у гравця
                     int extracted = pEnergy.extractEnergyPure(50, false);
-
-                    // 2. Викидаємо її в світ через івент (якщо щось реально забрали)
                     if (extracted > 0) {
+                        // ВЛАСНИЙ ЗВУК: Гудіння при скиданні енергії
+                        if (count % 10 == 0) {
+                            level.playSound(null, player.getX(), player.getY(), player.getZ(), ModSounds.TACHYON_HUM.get(), SoundSource.PLAYERS, 0.2f, 1.5f);
+                        }
                         net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
                                 new com.maxim.tacionian.api.events.TachyonWasteEvent(level, player.blockPosition(), extracted)
                         );
                     }
-
-                    // 3. Синхронізуємо HUD
                     if (count % 5 == 0) pEnergy.sync(player);
                 }
             });
@@ -86,12 +65,7 @@ public class EnergyStabilizerItem extends Item {
     }
 
     private int getThresholdForMode(int mode) {
-        return switch (mode) {
-            case 0 -> 75; // Safe
-            case 1 -> 40; // Balanced
-            case 2 -> 15; // Performance
-            default -> 0; // Unrestricted
-        };
+        return switch (mode) { case 0 -> 75; case 1 -> 40; case 2 -> 15; default -> 0; };
     }
 
     private Component getModeName(int mode) {
@@ -106,12 +80,8 @@ public class EnergyStabilizerItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         int mode = stack.getOrCreateTag().getInt("Mode");
-
         tooltip.add(Component.translatable("tooltip.tacionian.energy_stabilizer.desc").withStyle(ChatFormatting.GRAY));
-
-        tooltip.add(Component.translatable("tooltip.tacionian.energy_stabilizer.mode")
-                .append(getModeName(mode)).withStyle(ChatFormatting.AQUA));
-
+        tooltip.add(Component.translatable("tooltip.tacionian.energy_stabilizer.mode").append(getModeName(mode)).withStyle(ChatFormatting.AQUA));
         tooltip.add(Component.translatable("tooltip.tacionian.energy_stabilizer.use_info").withStyle(ChatFormatting.YELLOW));
     }
 

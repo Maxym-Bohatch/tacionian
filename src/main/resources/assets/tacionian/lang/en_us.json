@@ -55,5 +55,8 @@
   "tooltip.tacionian.active": "§aSTATUS: ACTIVE",
   "tooltip.tacionian.inactive": "§cSTATUS: INACTIVE",
   "tooltip.tacionian.level": "Core Lvl",
-  "death.attack.tacionian.energy": "%1$s's core has imploded due to energy overload"
+  "death.attack.tacionian.energy": "%1$s's core has imploded due to energy overload",
+  "subtitles.tacionian.energy_charge": "Tachyon energy surges",
+  "subtitles.tacionian.mode_switch": "Device clicks",
+  "subtitles.tacionian.tachyon_hum": "Tachyon core hums"
 }

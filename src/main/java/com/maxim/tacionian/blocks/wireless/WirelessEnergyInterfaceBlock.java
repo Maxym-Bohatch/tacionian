@@ -1,7 +1,9 @@
 package com.maxim.tacionian.blocks.wireless;
 
 import com.maxim.tacionian.register.ModBlockEntities;
+import com.maxim.tacionian.register.ModSounds;
 import net.minecraft.core.BlockPos;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -26,15 +28,15 @@ public class WirelessEnergyInterfaceBlock extends BaseEntityBlock {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof WirelessEnergyInterfaceBlockEntity interfaceBe) {
                 interfaceBe.cycleMode(player);
+                // ВЛАСНИЙ ЗВУК: Перемикання інтерфейсу
+                level.playSound(null, pos, ModSounds.MODE_SWITCH.get(), SoundSource.BLOCKS, 0.6f, 1.2f);
             }
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
     }
 
     @Override
-    public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.MODEL;
-    }
+    public RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
 
     @Nullable
     @Override
@@ -45,7 +47,6 @@ public class WirelessEnergyInterfaceBlock extends BaseEntityBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        // Тікер працює ТІЛЬКИ на сервері для обробки логіки енергії
         return level.isClientSide ? null : createTickerHelper(type, ModBlockEntities.WIRELESS_BE.get(),
                 WirelessEnergyInterfaceBlockEntity::tick);
     }

@@ -4,8 +4,10 @@ import com.maxim.tacionian.api.energy.ITachyonStorage;
 import com.maxim.tacionian.blocks.cable.TachyonCableBlockEntity;
 import com.maxim.tacionian.blocks.wireless.WirelessEnergyInterfaceBlockEntity;
 import com.maxim.tacionian.register.ModCapabilities;
+import com.maxim.tacionian.register.ModSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
@@ -15,7 +17,7 @@ import java.util.Set;
 public class TachyonNetwork {
     private final Set<TachyonCableBlockEntity> cables = new HashSet<>();
     private int energy = 0;
-    private final int CAPACITY_PER_CABLE = 100; // Буфер мережі
+    private final int CAPACITY_PER_CABLE = 100;
 
     public void addCable(TachyonCableBlockEntity cable) { cables.add(cable); }
     public void removeCable(TachyonCableBlockEntity cable) { cables.remove(cable); }
@@ -34,7 +36,13 @@ public class TachyonNetwork {
     public void tick(Level level) {
         if (cables.isEmpty()) return;
 
-        // КРОК 1: ЗБІР (Тільки з джерел та повних резервуарів)
+        // ЕФЕКТ: Рідкісне гудіння мережі, якщо вона активна
+        if (energy > 50 && level.random.nextFloat() < 0.005f) {
+            BlockPos randomCable = cables.iterator().next().getBlockPos();
+            level.playSound(null, randomCable, ModSounds.TACHYON_HUM.get(), SoundSource.BLOCKS, 0.05f, 1.0f);
+        }
+
+        // КРОК 1: ЗБІР
         for (TachyonCableBlockEntity cable : cables) {
             if (energy >= getCapacity()) break;
             BlockPos pos = cable.getBlockPos();
@@ -44,8 +52,6 @@ public class TachyonNetwork {
                 if (neighbor == null || neighbor instanceof TachyonCableBlockEntity) continue;
 
                 neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                    // Якщо в сусіді енергії більше, ніж у мережі (буфері), витягуємо її
-                    // Це дозволяє енергії текти від "повного" до "порожнього"
                     if (cap.getEnergy() > 0) {
                         int toPull = Math.min(getCapacity() - energy, 200);
                         int extracted = cap.extractTacionEnergy(toPull, false);
@@ -55,7 +61,7 @@ public class TachyonNetwork {
             }
         }
 
-        // КРОК 2: РОЗДАЧА (Тільки тим, у кого енергії менше, ніж у мережі)
+        // КРОК 2: РОЗДАЧА
         if (energy > 0) {
             for (TachyonCableBlockEntity cable : cables) {
                 if (energy <= 0) break;
@@ -64,12 +70,9 @@ public class TachyonNetwork {
                 for (Direction dir : Direction.values()) {
                     BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
                     if (neighbor == null || neighbor instanceof TachyonCableBlockEntity) continue;
-
-                    // Не повертаємо енергію в джерело
                     if (neighbor instanceof WirelessEnergyInterfaceBlockEntity) continue;
 
                     neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                        // Штовхаємо енергію далі
                         int toPush = Math.min(energy, 200);
                         int accepted = cap.receiveTacionEnergy(toPush, false);
                         energy -= accepted;
