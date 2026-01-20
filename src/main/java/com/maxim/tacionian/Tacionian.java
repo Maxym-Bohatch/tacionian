@@ -1,8 +1,8 @@
 package com.maxim.tacionian;
 
 import com.maxim.tacionian.api.energy.ITachyonStorage;
+import com.maxim.tacionian.config.TacionianConfig;
 import com.maxim.tacionian.energy.PlayerEnergy;
-import com.maxim.tacionian.energy.PlayerEnergyProvider; // Переконайся, що імпорт є
 import com.maxim.tacionian.network.NetworkHandler;
 import com.maxim.tacionian.register.*;
 import com.maxim.tacionian.command.EnergyCommand;
@@ -10,7 +10,9 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
@@ -20,6 +22,9 @@ public class Tacionian {
 
     public Tacionian() {
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
+
+        // Реєстрація конфігурації
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, TacionianConfig.SPEC);
 
         ModBlocks.BLOCKS.register(modBus);
         ModBlockEntities.register(modBus);
@@ -41,9 +46,7 @@ public class Tacionian {
     }
 
     private void registerCaps(RegisterCapabilitiesEvent event) {
-        // Реєструємо клас енергії гравця
         event.register(PlayerEnergy.class);
-        // Реєструємо інтерфейс для блоків та предметів
         event.register(ITachyonStorage.class);
     }
 }
