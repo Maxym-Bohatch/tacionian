@@ -16,14 +16,9 @@ import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Consumer;
-
 public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonStorage {
     private int energy = 0;
     private final int MAX_CAPACITY = 25000;
-
     private final LazyOptional<ITachyonStorage> holder = LazyOptional.of(() -> this);
 
     public EnergyReservoirBlockEntity(BlockPos pos, BlockState state) {
@@ -51,42 +46,28 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         return toExtract;
     }
 
-    // Тікер для автоматичної взаємодії з кабелями
     public static void tick(Level level, BlockPos pos, BlockState state, EnergyReservoirBlockEntity be) {
         if (level.isClientSide) return;
 
-        // 1. ПРИЙОМ: Резервуар викачує енергію з кабелів/блоків, які мають енергію
-        if (be.energy < be.MAX_CAPACITY) {
-            for (Direction dir : Direction.values()) {
-                BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-                if (neighbor == null) continue;
+        for (Direction dir : Direction.values()) {
+            BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+            if (neighbor == null) continue;
 
-                neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                    // Резервуар забирає до 100 Tx за тік (швидке завантаження)
-                    int toPull = Math.min(be.MAX_CAPACITY - be.energy, 100);
-                    int pulled = cap.extractTacionEnergy(toPull, false);
+            neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
+                // 1. ПРИЙОМ: Витягуємо з сусідів (якщо це НЕ інший резервуар)
+                if (be.energy < be.MAX_CAPACITY && !(neighbor instanceof EnergyReservoirBlockEntity)) {
+                    int pulled = cap.extractTacionEnergy(Math.min(be.MAX_CAPACITY - be.energy, 100), false);
                     be.receiveTacionEnergy(pulled, false);
-                });
-            }
-        }
+                }
 
-        // 2. РОЗДАЧА: Якщо ти захочеш, щоб резервуар сам живив кабелі (опціонально)
-        // Якщо це просто сховище, цей блок можна закоментувати, щоб енергія виходила тільки за запитом споживача
-        /*
-        if (be.energy > 0) {
-            for (Direction dir : Direction.values()) {
-                BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-                if (neighbor == null) continue;
-                neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                    if (cap.getEnergy() < cap.getMaxCapacity()) {
-                        int toPush = Math.min(be.energy, 100);
-                        int accepted = cap.receiveTacionEnergy(toPush, false);
-                        be.extractTacionEnergy(accepted, false);
-                    }
-                });
-            }
+                // 2. РОЗДАЧА: Виштовхуємо в кабелі/машини
+                if (be.energy > 0) {
+                    int toPush = Math.min(be.energy, 100);
+                    int accepted = cap.receiveTacionEnergy(toPush, false);
+                    be.extractTacionEnergy(accepted, false);
+                }
+            });
         }
-        */
     }
 
     private void updateBlock() {
@@ -105,42 +86,10 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         return super.getCapability(cap, side);
     }
 
-    @Override
-    public void invalidateCaps() {
-        super.invalidateCaps();
-        holder.invalidate();
-    }
-
-    @Override
-    public void load(CompoundTag nbt) {
-        super.load(nbt);
-        this.energy = nbt.getInt("StoredTacion");
-    }
-
-    @Override
-    protected void saveAdditional(CompoundTag nbt) {
-        super.saveAdditional(nbt);
-        nbt.putInt("StoredTacion", energy);
-    }
-
-    @Override
-    public CompoundTag getUpdateTag() {
-        CompoundTag tag = super.getUpdateTag();
-        saveAdditional(tag);
-        return tag;
-    }
-
-    @Nullable
-    @Override
-    public ClientboundBlockEntityDataPacket getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
-    }
-
-    @Override
-    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) {
-        CompoundTag tag = pkt.getTag();
-        if (tag != null) {
-            this.load(tag);
-        }
-    }
+    @Override public void invalidateCaps() { super.invalidateCaps(); holder.invalidate(); }
+    @Override public void load(CompoundTag nbt) { super.load(nbt); this.energy = nbt.getInt("StoredTacion"); }
+    @Override protected void saveAdditional(CompoundTag nbt) { super.saveAdditional(nbt); nbt.putInt("StoredTacion", energy); }
+    @Override public CompoundTag getUpdateTag() { CompoundTag tag = super.getUpdateTag(); saveAdditional(tag); return tag; }
+    @Nullable @Override public ClientboundBlockEntityDataPacket getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }
+    @Override public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) { if (pkt.getTag() != null) this.load(pkt.getTag()); }
 }

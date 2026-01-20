@@ -10,8 +10,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.network.PacketDistributor;
 
 public class PlayerEnergy {
-    // Константи балансу
-    public static final int MAX_LEVEL = 100; // Тепер ліміт 100
+    public static final int MAX_LEVEL = 100;
     public static final float EXP_MULTIPLIER = 0.5f;
 
     private int energy = 0;
@@ -45,25 +44,26 @@ public class PlayerEnergy {
         if (remoteStabilizedTimer > 0) remoteStabilizedTimer--;
         if (remoteNoDrainTimer > 0) remoteNoDrainTimer--;
 
-        // Пасивна безпека (обмежена лише початковими рівнями)
         if (this.level <= 3 && !remoteStabilized && !remoteNoDrain) {
             int safeLimit = (int) (getMaxEnergy() * 0.95f);
             if (this.energy > safeLimit) this.energy = safeLimit;
         }
 
-        // Регенерація енергії
+        // --- ПОКРАЩЕНА РЕГЕНЕРАЦІЯ ---
         if (!remoteNoDrain && player.tickCount % 20 == 0) {
             int regenTarget = getMaxEnergy();
-            // На низьких рівнях регенеруємо лише до 90%, щоб стимулювати гравця шукати джерела
             if (this.level < 5) regenTarget = (int)(getMaxEnergy() * 0.9f);
 
             if (this.energy < regenTarget) {
-                receiveEnergy(getRegenRate(), false);
-                this.sync(serverPlayer);
+                // Тепер регенерація відчутна
+                int amount = getRegenRate();
+                receiveEnergy(amount, false);
+
+                // Синхронізуємо тільки якщо відбулася зміна
+                if (amount > 0) this.sync(serverPlayer);
             }
         }
 
-        // Штрафи
         if (isOverloaded()) {
             float penalty = Math.max(0.1f, (this.energy - getMaxEnergy()) / 100.0f);
             decreaseExperience(penalty, serverPlayer);
@@ -76,6 +76,8 @@ public class PlayerEnergy {
         }
     }
 
+    // ... (методи setStabilized, addExperience, decreaseExperience без змін)
+
     public void setStabilized(boolean v) { if (v) this.stabilizedTimer = 15; }
     public void setRemoteStabilized(boolean v) { if (v) this.remoteStabilizedTimer = 15; }
     public void setRemoteNoDrain(boolean v) { if (v) this.remoteNoDrainTimer = 15; }
@@ -83,12 +85,10 @@ public class PlayerEnergy {
     public void addExperience(float amount, ServerPlayer player) {
         if (amount <= 0 || this.level >= MAX_LEVEL) return;
         this.fractionalExperience += amount;
-
         if (this.fractionalExperience >= 1.0f) {
             int wholeExp = (int) this.fractionalExperience;
             this.experience += wholeExp;
             this.fractionalExperience -= wholeExp;
-
             while (this.experience >= getRequiredExp() && this.level < MAX_LEVEL) {
                 this.experience -= getRequiredExp();
                 this.level++;
@@ -121,21 +121,24 @@ public class PlayerEnergy {
     public void setEnergy(int energy) { this.energy = Math.max(0, energy); }
     public void setLevel(int level) { this.level = Math.min(Math.max(1, level), MAX_LEVEL); }
     public void setExperience(int experience) { this.experience = Math.max(0, experience); }
-
     public int getEnergy() { return energy; }
     public int getLevel() { return level; }
     public int getExperience() { return experience; }
 
-    // Покращена математика росту
     public int getMaxEnergy() { return 1000 + (level - 1) * 500; }
+
     public int getRequiredExp() {
-        // Експоненціальне ускладнення після 20 рівня
         if (level < 20) return 500 + (level * 100);
         return 2500 + (level * 250);
     }
 
+    // --- НОВА ФОРМУЛА РЕГЕНЕРАЦІЇ ---
     public int getRegenRate() {
-        return 1 + (level / 5); // Повільніша регенерація для балансу
+        // База (5) + Прогресія від рівня.
+        // На 100 рівні: 5 + (100 * 2) + (100^2 / 200) = 5 + 200 + 50 = 255 Tx/сек.
+        // Це заповнить 50к енергії за ~3 хвилини, що адекватно.
+        double scale = 5 + (level * 2.0) + (Math.pow(level, 2) / 200.0);
+        return (int) scale;
     }
 
     public int getEnergyPercent() { return (int)((float)energy / getMaxEnergy() * 100); }
@@ -153,7 +156,6 @@ public class PlayerEnergy {
         int toExt = Math.min(amount, energy);
         if (!simulate && toExt > 0) {
             energy -= toExt;
-            // Досвід дається за використання енергії
             addExperience(toExt * EXP_MULTIPLIER, player);
         }
         return toExt;
