@@ -1,6 +1,7 @@
 package com.maxim.tacionian.blocks.storage;
 
 import com.maxim.tacionian.api.energy.ITachyonStorage;
+import com.maxim.tacionian.blocks.cable.TachyonCableBlockEntity;
 import com.maxim.tacionian.register.ModBlockEntities;
 import com.maxim.tacionian.register.ModCapabilities;
 import net.minecraft.core.BlockPos;
@@ -25,6 +26,33 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         super(ModBlockEntities.RESERVOIR_BE.get(), pos, state);
     }
 
+    public static void tick(Level level, BlockPos pos, BlockState state, EnergyReservoirBlockEntity be) {
+        if (level.isClientSide || be.energy <= 0) return;
+
+        // ПЕРЕДАЧА СУСІДАМ З ЛОГІКОЮ ПРІОРИТЕТУ
+        for (Direction dir : Direction.values()) {
+            if (be.energy <= 0) break;
+
+            BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+            if (neighbor != null) {
+                neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(storage -> {
+
+                    // ЛОГІКА ЗАРЯДКИ/РОЗРЯДКИ:
+                    // Резервуар віддає енергію лише якщо в ньому БІЛЬШЕ енергії, ніж у сусіда.
+                    // Це дозволяє енергії "затікати" в бак, коли він порожній, і витікати, коли мережа порожня.
+                    if (be.energy > storage.getEnergy()) {
+                        int toPush = Math.min(be.energy - storage.getEnergy(), 1000); // Штовхаємо різницю, але не більше ліміту
+
+                        if (toPush > 0) {
+                            int accepted = storage.receiveTacionEnergy(toPush, false);
+                            be.extractTacionEnergy(accepted, false);
+                        }
+                    }
+                });
+            }
+        }
+    }
+
     @Override
     public int receiveTacionEnergy(int amount, boolean simulate) {
         int space = MAX_CAPACITY - energy;
@@ -46,18 +74,9 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         return toExtract;
     }
 
-    // Тік тепер майже порожній, бо TachyonNetwork сама керує переливанням
-    public static void tick(Level level, BlockPos pos, BlockState state, EnergyReservoirBlockEntity be) {
-        if (level.isClientSide) return;
-
-        // Можна залишити логіку живлення машин, які стоять впритул без кабелів,
-        // але для переливання по кабелях цей метод більше НЕ потрібен.
-    }
-
     private void updateBlock() {
         setChanged();
         if (level != null && !level.isClientSide) {
-            // Оновлюємо блок, щоб клієнт бачив актуальну енергію
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
         }
     }
@@ -72,36 +91,9 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
 
     @Override public void invalidateCaps() { super.invalidateCaps(); holder.invalidate(); }
 
-    // ВАЖЛИВО: Переконайся, що NBT теги збігаються скрізь
-    @Override
-    public void load(CompoundTag nbt) {
-        super.load(nbt);
-        this.energy = nbt.getInt("StoredTacion");
-    }
-
-    @Override
-    protected void saveAdditional(CompoundTag nbt) {
-        super.saveAdditional(nbt);
-        nbt.putInt("StoredTacion", energy);
-    }
-
-    @Override
-    public CompoundTag getUpdateTag() {
-        CompoundTag tag = super.getUpdateTag();
-        saveAdditional(tag);
-        return tag;
-    }
-
-    @Nullable
-    @Override
-    public ClientboundBlockEntityDataPacket getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
-    }
-
-    @Override
-    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) {
-        if (pkt.getTag() != null) {
-            this.load(pkt.getTag());
-        }
-    }
+    @Override public void load(CompoundTag nbt) { super.load(nbt); this.energy = nbt.getInt("StoredTacion"); }
+    @Override protected void saveAdditional(CompoundTag nbt) { super.saveAdditional(nbt); nbt.putInt("StoredTacion", energy); }
+    @Override public CompoundTag getUpdateTag() { CompoundTag tag = super.getUpdateTag(); saveAdditional(tag); return tag; }
+    @Nullable @Override public ClientboundBlockEntityDataPacket getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }
+    @Override public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) { if (pkt.getTag() != null) load(pkt.getTag()); }
 }

@@ -22,7 +22,6 @@ public class TachyonCableBlockEntity extends BlockEntity implements ITachyonStor
         super(ModBlockEntities.CABLE_BE.get(), pos, state);
     }
 
-    // Додаємо цей метод, щоб виправити помилку "cannot find symbol" у TachyonNetwork
     public void setNetwork(TachyonNetwork network) {
         this.network = network;
     }
@@ -35,24 +34,22 @@ public class TachyonCableBlockEntity extends BlockEntity implements ITachyonStor
         if (be.network != null) {
             be.network.tickMaster(be, level);
 
-            // ВИЗУАЛЬНЕ ОНОВЛЕННЯ:
-            // Кабель вважається POWERED, якщо енергія є в мережі АБО у сусіда-резервуара
-            boolean hasEnergy = be.network.getEnergy() > 0;
-
-            if (!hasEnergy) {
+            // АКТИВНА ПЕРЕДАЧА: Кабель сам віддає енергію споживачам поруч
+            if (be.network.getEnergy() > 0) {
                 for (Direction dir : Direction.values()) {
                     BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-                    // Перевіряємо капабіліті тахіонів у сусіда (Резервуара тощо)
                     if (neighbor != null && !(neighbor instanceof TachyonCableBlockEntity)) {
-                        var cap = neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite());
-                        if (cap.isPresent() && cap.map(ITachyonStorage::getEnergy).orElse(0) > 0) {
-                            hasEnergy = true;
-                            break;
-                        }
+                        neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(storage -> {
+                            int toPush = Math.min(be.network.getEnergy(), 1000);
+                            int accepted = storage.receiveTacionEnergy(toPush, false);
+                            be.network.extractEnergy(accepted, false);
+                        });
                     }
                 }
             }
 
+            // Оновлення візуального стану (світіння)
+            boolean hasEnergy = be.network.getEnergy() > 0;
             if (state.getValue(TachyonCableBlock.POWERED) != hasEnergy) {
                 level.setBlock(pos, state.setValue(TachyonCableBlock.POWERED, hasEnergy), 3);
             }
@@ -78,34 +75,13 @@ public class TachyonCableBlockEntity extends BlockEntity implements ITachyonStor
         }
     }
 
-    @Override
-    public void setRemoved() {
-        if (network != null) network.removeCable(this);
-        super.setRemoved();
-    }
+    @Override public void setRemoved() { if (network != null) network.removeCable(this); super.setRemoved(); }
+    @Override public int receiveTacionEnergy(int amount, boolean simulate) { return network != null ? network.receiveEnergy(amount, simulate) : 0; }
+    @Override public int extractTacionEnergy(int amount, boolean simulate) { return network != null ? network.extractEnergy(amount, simulate) : 0; }
+    @Override public int getEnergy() { return network != null ? network.getEnergy() : 0; }
+    @Override public int getMaxCapacity() { return network != null ? network.getCapacity() : 0; }
 
-    @Override
-    public int receiveTacionEnergy(int amount, boolean simulate) {
-        return network != null ? network.receiveEnergy(amount, simulate) : 0;
-    }
-
-    @Override
-    public int extractTacionEnergy(int amount, boolean simulate) {
-        return network != null ? network.extractEnergy(amount, simulate) : 0;
-    }
-
-    @Override
-    public int getEnergy() {
-        return network != null ? network.getEnergy() : 0;
-    }
-
-    @Override
-    public int getMaxCapacity() {
-        return network != null ? network.getCapacity() : 0;
-    }
-
-    @Override
-    public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
+    @Override public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
         if (cap == ModCapabilities.TACHYON_STORAGE) return holder.cast();
         return super.getCapability(cap, side);
     }

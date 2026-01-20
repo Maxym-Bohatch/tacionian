@@ -112,47 +112,35 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
         for (Direction dir : Direction.values()) {
             if (be.storedEnergy <= 0) break;
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-            if (neighbor == null) continue;
+
+            // Захист від петель: не передаємо іншим бездротовим інтерфейсам
+            if (neighbor == null || neighbor instanceof WirelessEnergyInterfaceBlockEntity) continue;
 
             var tachyonCap = neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite());
-            var rfCap = neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite());
+            var rfCap = neighbor.getCapability(net.minecraftforge.common.capabilities.ForgeCapabilities.ENERGY, dir.getOpposite());
 
-            final int[] accTX = {0};
-            final int[] accRF = {0};
+            // 1. TX -> TX (БЕЗ ДОСВІДУ)
+            tachyonCap.ifPresent(cap -> {
+                int toPush = Math.min(be.storedEnergy, 200);
+                int accepted = cap.receiveTacionEnergy(toPush, false);
+                be.extractTacionEnergy(accepted, false);
+            });
 
-            if (tachyonCap.isPresent() && rfCap.isPresent()) {
-                int toSplit = Math.min(be.storedEnergy, 200);
-                int half = toSplit / 2;
-
-                tachyonCap.ifPresent(cap -> {
-                    if (!(neighbor instanceof EnergyReservoirBlockEntity) && !(neighbor instanceof WirelessEnergyInterfaceBlockEntity)) {
-                        accTX[0] = cap.receiveTacionEnergy(half, false);
-                    }
-                });
-                rfCap.ifPresent(cap -> {
-                    if (cap.canReceive()) accRF[0] = cap.receiveEnergy(half * 10, false) / 10;
-                });
-
-                int rTX = half - accTX[0]; int rRF = half - accRF[0];
-                if (rTX > 0) rfCap.ifPresent(cap -> { if (cap.canReceive()) accRF[0] += cap.receiveEnergy(rTX * 10, false) / 10; });
-                if (rRF > 0) tachyonCap.ifPresent(cap -> { if (!(neighbor instanceof EnergyReservoirBlockEntity)) accTX[0] += cap.receiveTacionEnergy(rRF, false); });
-
-                int total = accTX[0] + accRF[0];
-                be.extractTacionEnergy(total, false);
-                if (accRF[0] > 0) player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e -> e.addExperience(accRF[0] * 0.15f, player));
-
-            } else if (tachyonCap.isPresent()) {
-                tachyonCap.ifPresent(cap -> {
-                    if (!(neighbor instanceof EnergyReservoirBlockEntity)) {
-                        be.extractTacionEnergy(cap.receiveTacionEnergy(Math.min(be.storedEnergy, 200), false), false);
-                    }
-                });
-            } else if (rfCap.isPresent()) {
+            // 2. TX -> RF (З ДОСВІДОМ)
+            if (be.storedEnergy > 0) {
                 rfCap.ifPresent(cap -> {
                     if (cap.canReceive()) {
-                        int used = cap.receiveEnergy(Math.min(be.storedEnergy * 10, 2000), false) / 10;
-                        be.extractTacionEnergy(used, false);
-                        player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e -> e.addExperience(used * 0.15f, player));
+                        int toPushRF = Math.min(be.storedEnergy * 10, 2000); // 1 TX = 10 RF
+                        int acceptedRF = cap.receiveEnergy(toPushRF, false);
+                        int usedTX = acceptedRF / 10;
+
+                        if (usedTX > 0) {
+                            be.extractTacionEnergy(usedTX, false);
+                            // Досвід нараховується тільки тут
+                            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e ->
+                                    e.addExperience(usedTX * 0.15f, player)
+                            );
+                        }
                     }
                 });
             }
