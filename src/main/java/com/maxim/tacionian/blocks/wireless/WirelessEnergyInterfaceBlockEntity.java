@@ -79,6 +79,7 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
         setChanged();
     }
 
+
     public static void tick(Level level, BlockPos pos, BlockState state, WirelessEnergyInterfaceBlockEntity be) {
         if (level.isClientSide) return;
 
@@ -100,18 +101,34 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
                     if (hasConnections) {
                         pEnergy.setRemoteNoDrain(false);
 
-                        // Якщо є споживачі (машини), качаємо на повну. Якщо лише кабелі — тримаємо 50%, щоб не мигали.
-                        boolean machinesActive = checkMachinesNeedPower(level, pos);
-                        int targetFill = machinesActive ? be.MAX_CAPACITY : be.MAX_CAPACITY / 2;
+                        // --- НОВА ЛОГІКА СКИНУ ---
+                        if (pEnergy.isOverloaded()) {
+                            // Якщо гравець перевантажений, примусово тягнемо енергію
+                            int toDrain = 40;
+                            int extracted = pEnergy.extractEnergyPure(toDrain, false);
 
-                        if (be.storedEnergy < targetFill && currentPercent > threshold) {
-                            int taken = pEnergy.extractEnergyPure(50, false);
-                            be.receiveTacionEnergy(taken, false);
+                            // Спробуємо запхнути в свій буфер
+                            int accepted = be.receiveTacionEnergy(extracted, false);
+                            int leftover = extracted - accepted;
+
+                            // Якщо буфер повний - викидаємо залишок у повітря
+                            if (leftover > 0) {
+                                MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, leftover));
+                            }
+                        } else {
+                            // Звичайна логіка наповнення буфера
+                            boolean machinesActive = checkMachinesNeedPower(level, pos);
+                            int targetFill = machinesActive ? be.MAX_CAPACITY : be.MAX_CAPACITY / 2;
+
+                            if (be.storedEnergy < targetFill && currentPercent > threshold) {
+                                int taken = pEnergy.extractEnergyPure(50, false);
+                                be.receiveTacionEnergy(taken, false);
+                            }
                         }
 
-                        // Плавна роздача кожного тіку
                         processEnergyTransfer(level, pos, be);
                     } else {
+                        // Логіка коли немає дротів поруч (вже була)
                         pEnergy.setRemoteNoDrain(currentPercent > threshold);
                         if (currentPercent > threshold && level.getGameTime() % 20 == 0) {
                             int waste = pEnergy.extractEnergyPure(25, false);
