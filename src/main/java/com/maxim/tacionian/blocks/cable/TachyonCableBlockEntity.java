@@ -32,40 +32,29 @@ public class TachyonCableBlockEntity extends BlockEntity implements ITachyonStor
         boolean isPoweredState = currentState.getValue(TachyonCableBlock.POWERED);
         boolean hasEnergy = this.energy > 0;
 
-        // Якщо фактична наявність енергії відрізняється від відображення блоку -> оновити блок
         if (isPoweredState != hasEnergy) {
             level.setBlock(worldPosition, currentState.setValue(TachyonCableBlock.POWERED, hasEnergy), 3);
         }
 
-        // Якщо енергії немає, передавати нічого
         if (energy <= 0) return;
 
-        // --- ЛОГІКА ПЕРЕДАЧІ ЕНЕРГІЇ ---
-        for (Direction dir : Direction.values()) {
+        // --- ОНОВЛЕНА ЛОГІКА ПЕРЕДАЧІ (PUSH) ---
+        // Створюємо масив сторін для рандомізації (щоб енергія не йшла завжди в одну сторону)
+        Direction[] dirs = Direction.values();
+
+        for (Direction dir : dirs) {
             if (energy <= 0) break;
 
             BlockEntity neighbor = level.getBlockEntity(worldPosition.relative(dir));
             if (neighbor == null) continue;
 
             neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                if (neighbor instanceof TachyonCableBlockEntity nextCable) {
-                    // 1. Якщо сусід - теж кабель: вирівнюємо рівень енергії
-                    if (this.energy > nextCable.energy) {
-                        int totalEnergy = this.energy + nextCable.energy;
-                        int targetEnergy = totalEnergy / 2;
-                        int toMove = Math.min(this.energy - targetEnergy, MAX_TRANSFER);
-
-                        if (toMove > 0) {
-                            nextCable.energy += toMove;
-                            this.energy -= toMove;
-                            this.setChanged();
-                            nextCable.setChanged();
-                        }
-                    }
-                } else {
-                    // 2. Якщо сусід - машина: просто пхаємо енергію (Push)
+                // Перевіряємо, чи є місце у сусіда
+                if (cap.getEnergy() < cap.getMaxCapacity()) {
+                    // Пхаємо стільки, скільки можемо (або скільки влізе в сусіда)
                     int toPush = Math.min(energy, MAX_TRANSFER);
-                    int accepted = cap.receiveTacionEnergy(toPush, false); // false = не симуляція
+                    int accepted = cap.receiveTacionEnergy(toPush, false);
+
                     if (accepted > 0) {
                         this.energy -= accepted;
                         this.setChanged();
