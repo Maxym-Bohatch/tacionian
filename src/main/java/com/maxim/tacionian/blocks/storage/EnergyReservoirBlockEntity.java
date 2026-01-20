@@ -6,6 +6,7 @@ import com.maxim.tacionian.register.ModCapabilities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.capabilities.Capability;
@@ -15,7 +16,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonStorage {
     private int energy = 0;
-    private final int MAX_CAPACITY = 100000;
+    private final int MAX_CAPACITY = 25000;
 
     private final LazyOptional<ITachyonStorage> holder = LazyOptional.of(() -> this);
 
@@ -29,7 +30,7 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         int toAdd = Math.min(amount, space);
         if (!simulate && toAdd > 0) {
             energy += toAdd;
-            setChanged();
+            updateBlock();
         }
         return toAdd;
     }
@@ -39,9 +40,16 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         int toExtract = Math.min(amount, energy);
         if (!simulate && toExtract > 0) {
             energy -= toExtract;
-            setChanged();
+            updateBlock();
         }
         return toExtract;
+    }
+
+    private void updateBlock() {
+        setChanged();
+        if (level != null && !level.isClientSide) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        }
     }
 
     @Override public int getEnergy() { return energy; }
@@ -49,9 +57,7 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
 
     @Override
     public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
-        if (cap == ModCapabilities.TACHYON_STORAGE) {
-            return holder.cast();
-        }
+        if (cap == ModCapabilities.TACHYON_STORAGE) return holder.cast();
         return super.getCapability(cap, side);
     }
 
@@ -73,8 +79,22 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         nbt.putInt("StoredTacion", energy);
     }
 
+    // Синхронізація для клієнта
     @Override
     public CompoundTag getUpdateTag() {
-        return saveWithoutMetadata();
+        CompoundTag tag = super.getUpdateTag();
+        saveAdditional(tag);
+        return tag;
+    }
+
+    @Override
+    public void handleUpdateTag(CompoundTag tag) {
+        load(tag);
+    }
+
+    @Nullable
+    @Override
+    public ClientboundBlockEntityDataPacket getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
     }
 }

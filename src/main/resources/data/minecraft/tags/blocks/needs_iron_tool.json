@@ -4,6 +4,7 @@
     "tacionian:basic_charger_block",
     "tacionian:safe_charger_block",
     "tacionian:energy_reservoir",
-    "tacionian:wireless_energy_interface"
+    "tacionian:wireless_energy_interface",
+    "tacionian:tachyon_cable"
   ]
 }

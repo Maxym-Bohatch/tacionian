@@ -1,0 +1,138 @@
+{
+  "multipart": [
+    {
+      "when": {
+        "powered": "false"
+      },
+      "apply": {
+        "model": "tacionian:block/tachyon_cable_core_off"
+      }
+    },
+    {
+      "when": {
+        "north": "true",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "tacionian:block/tachyon_cable_side_off"
+      }
+    },
+    {
+      "when": {
+        "south": "true",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "tacionian:block/tachyon_cable_side_off",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "tacionian:block/tachyon_cable_side_off",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "east": "true",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "tacionian:block/tachyon_cable_side_off",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "up": "true",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "tacionian:block/tachyon_cable_side_off",
+        "x": 270
+      }
+    },
+    {
+      "when": {
+        "down": "true",
+        "powered": "false"
+      },
+      "apply": {
+        "model": "tacionian:block/tachyon_cable_side_off",
+        "x": 90
+      }
+    },
+    {
+      "when": {
+        "powered": "true"
+      },
+      "apply": {
+        "model": "tacionian:block/tachyon_cable_core_on"
+      }
+    },
+    {
+      "when": {
+        "north": "true",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "tacionian:block/tachyon_cable_side_on"
+      }
+    },
+    {
+      "when": {
+        "south": "true",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "tacionian:block/tachyon_cable_side_on",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "tacionian:block/tachyon_cable_side_on",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "east": "true",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "tacionian:block/tachyon_cable_side_on",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "up": "true",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "tacionian:block/tachyon_cable_side_on",
+        "x": 270
+      }
+    },
+    {
+      "when": {
+        "down": "true",
+        "powered": "true"
+      },
+      "apply": {
+        "model": "tacionian:block/tachyon_cable_side_on",
+        "x": 90
+      }
+    }
+  ]
+}

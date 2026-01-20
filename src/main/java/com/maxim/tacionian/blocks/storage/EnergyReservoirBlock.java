@@ -4,6 +4,7 @@ import com.maxim.tacionian.api.events.TachyonWasteEvent;
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -44,17 +45,20 @@ public class EnergyReservoirBlock extends Block implements EntityBlock {
                 int amount = 500;
 
                 if (player.isShiftKeyDown()) {
+                    // Забираємо з блоку -> гравцеві
                     int extractedFromBlock = reservoir.extractTacionEnergy(amount, false);
                     if (extractedFromBlock > 0) {
                         pEnergy.receiveEnergy(extractedFromBlock, false);
                     }
                 } else {
+                    // Забираємо у гравця -> в блок
                     int takenFromPlayer = pEnergy.extractEnergyPure(amount, false);
                     if (takenFromPlayer > 0) {
                         reservoir.receiveTacionEnergy(takenFromPlayer, false);
                     }
                 }
 
+                // Завдяки синхронізації в BlockEntity, тут завжди будуть свіжі дані
                 player.displayClientMessage(Component.translatable("tooltip.tacionian.energy_reservoir.energy",
                         reservoir.getEnergy(), reservoir.getMaxCapacity()).withStyle(ChatFormatting.AQUA), true);
 
@@ -64,7 +68,6 @@ public class EnergyReservoirBlock extends Block implements EntityBlock {
         return InteractionResult.SUCCESS;
     }
 
-    // ЛОГІКА ДЛЯ АДДОНУ: Викид енергії при руйнуванні
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
@@ -72,7 +75,6 @@ public class EnergyReservoirBlock extends Block implements EntityBlock {
             if (be instanceof EnergyReservoirBlockEntity reservoir) {
                 int leftover = reservoir.getEnergy();
                 if (leftover > 0 && !level.isClientSide) {
-                    // Відправляємо івент, який "почує" аддон Skies
                     MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, leftover));
                 }
             }
@@ -82,6 +84,11 @@ public class EnergyReservoirBlock extends Block implements EntityBlock {
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable BlockGetter level, List<Component> tooltip, TooltipFlag flag) {
+        // Читаємо енергію з предмета в інвентарі
+        CompoundTag nbt = stack.getTagElement("BlockEntityTag");
+        int energy = (nbt != null) ? nbt.getInt("StoredTacion") : 0;
+
+        tooltip.add(Component.translatable("tooltip.tacionian.energy_reservoir.energy", energy, 25000).withStyle(ChatFormatting.AQUA));
         tooltip.add(Component.translatable("tooltip.tacionian.energy_reservoir.desc").withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.translatable("block.tacionian.energy_reservoir.warning").withStyle(ChatFormatting.RED));
         tooltip.add(Component.translatable("block.tacionian.energy_reservoir.controls").withStyle(ChatFormatting.YELLOW));

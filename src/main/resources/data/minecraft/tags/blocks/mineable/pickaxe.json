@@ -5,6 +5,7 @@
     "tacionian:safe_charger_block",
     "tacionian:stabilization_plate",
     "tacionian:energy_reservoir",
-    "tacionian:wireless_energy_interface"
+    "tacionian:wireless_energy_interface",
+    "tacionian:tachyon_cable"
   ]
 }
