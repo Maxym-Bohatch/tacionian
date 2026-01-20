@@ -2,6 +2,7 @@ package com.maxim.tacionian.blocks.wireless;
 
 import com.maxim.tacionian.api.energy.ITachyonStorage;
 import com.maxim.tacionian.api.events.TachyonWasteEvent;
+import com.maxim.tacionian.blocks.storage.EnergyReservoirBlockEntity;
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
 import com.maxim.tacionian.register.ModBlockEntities;
 import com.maxim.tacionian.register.ModCapabilities;
@@ -22,10 +23,8 @@ import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.energy.IEnergyStorage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import com.maxim.tacionian.blocks.storage.EnergyReservoirBlockEntity;
-import java.util.ArrayList;
+
 import java.util.List;
-import java.util.function.Consumer;
 
 public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements ITachyonStorage {
     private int mode = 0;
@@ -75,19 +74,16 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
 
                     if (hasConnections) {
                         pEnergy.setRemoteNoDrain(false);
-                        // Якщо перевантажений - рятуємо гравця (даємо трохи досвіду за стабілізацію)
                         if (pEnergy.isOverloaded()) {
                             int extracted = pEnergy.extractEnergyPure(40, false);
                             pEnergy.addExperience(extracted * 0.05f, serverPlayer);
                             int leftover = extracted - be.receiveTacionEnergy(extracted, false);
                             if (leftover > 0) MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, leftover));
                         } else if (pEnergy.getEnergyPercent() > threshold && be.storedEnergy < be.MAX_CAPACITY) {
-                            // Звичайне переливання (без досвіду, щоб не було дюпу)
                             be.receiveTacionEnergy(pEnergy.extractEnergyPure(50, false), false);
                         }
                         processEnergyTransfer(level, pos, be, serverPlayer);
                     } else {
-                        // Режим антени (скид у повітря)
                         if (pEnergy.getEnergyPercent() > threshold && level.getGameTime() % 20 == 0) {
                             int waste = pEnergy.extractEnergyPure(25, false);
                             MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, waste));
@@ -106,21 +102,16 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor == null) continue;
 
-            // 1. ПЕРЕДАЧА В ТАХІОННІ БЛОКИ (TX -> TX)
-            // Тут ми просто переливаємо енергію. Досвід НЕ нараховуємо.
+            // 1. TX -> TX: Передаємо в кабелі/машини, але ІГНОРУЄМО Резервуари (XP = 0)
             neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                if (cap.getEnergy() < cap.getMaxCapacity()) {
-                    int toTransfer = Math.min(be.storedEnergy, 50); // Можна швидше передавати TX
-                    int accepted = cap.receiveTacionEnergy(toTransfer, false);
-                    if (accepted > 0) {
-                        be.extractTacionEnergy(accepted, false);
-                        // ЖОДНОГО addExperience тут немає
-                    }
+                if (!(neighbor instanceof EnergyReservoirBlockEntity) &&
+                        !(neighbor instanceof WirelessEnergyInterfaceBlockEntity)) {
+                    int accepted = cap.receiveTacionEnergy(Math.min(be.storedEnergy, 50), false);
+                    be.extractTacionEnergy(accepted, false);
                 }
             });
 
-            // 2. КОНВЕРТАЦІЯ В RF (TX -> RF)
-            // Це вважається "корисною працею" або складним процесом. Тут досвід НАРАХОВУЄМО.
+            // 2. TX -> RF: Конвертація в RF (XP нараховується)
             neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(cap -> {
                 if (cap.canReceive()) {
                     int toTransferRf = Math.min(be.storedEnergy * 10, 500);
@@ -128,8 +119,6 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
                     if (acceptedRf > 0) {
                         int tacionEquivalent = acceptedRf / 10;
                         be.extractTacionEnergy(tacionEquivalent, false);
-
-                        // Нараховуємо досвід тільки за успішну конвертацію в RF
                         player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e ->
                                 e.addExperience(tacionEquivalent * 0.15f, player));
                     }
@@ -137,22 +126,12 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
             });
         }
     }
+
     private static boolean checkAnyConnections(Level level, BlockPos pos) {
         for (Direction dir : Direction.values()) {
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-            if (neighbor != null && (neighbor.getCapability(ModCapabilities.TACHYON_STORAGE).isPresent() || neighbor.getCapability(ForgeCapabilities.ENERGY).isPresent())) return true;
-        }
-        return false;
-    }
-
-    private static boolean checkMachinesNeedPower(Level level, BlockPos pos) {
-        for (Direction dir : Direction.values()) {
-            BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-            if (neighbor != null) {
-                boolean rf = neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).map(c -> c.canReceive() && c.receiveEnergy(10, true) > 0).orElse(false);
-                boolean tx = neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).map(c -> c.getEnergy() < c.getMaxCapacity() * 0.9).orElse(false);
-                if (rf || tx) return true;
-            }
+            if (neighbor != null && (neighbor.getCapability(ModCapabilities.TACHYON_STORAGE).isPresent() ||
+                    neighbor.getCapability(ForgeCapabilities.ENERGY).isPresent())) return true;
         }
         return false;
     }
