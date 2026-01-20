@@ -106,27 +106,37 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor == null) continue;
 
-            // Передача в Tachyon блоки (Машини/Кабелі)
+            // 1. ПЕРЕДАЧА В ТАХІОННІ БЛОКИ (TX -> TX)
+            // Тут ми просто переливаємо енергію. Досвід НЕ нараховуємо.
             neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                if (!(neighbor instanceof EnergyReservoirBlockEntity) && cap.getEnergy() < cap.getMaxCapacity()) {
-                    int accepted = cap.receiveTacionEnergy(Math.min(be.storedEnergy, 25), false);
-                    be.extractTacionEnergy(accepted, false);
-                    // Додаємо досвід гравцю, бо енергія пішла в роботу!
-                    player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e -> e.addExperience(accepted * 0.2f, player));
+                if (cap.getEnergy() < cap.getMaxCapacity()) {
+                    int toTransfer = Math.min(be.storedEnergy, 50); // Можна швидше передавати TX
+                    int accepted = cap.receiveTacionEnergy(toTransfer, false);
+                    if (accepted > 0) {
+                        be.extractTacionEnergy(accepted, false);
+                        // ЖОДНОГО addExperience тут немає
+                    }
                 }
             });
 
-            // Передача в RF (Енергія конвертується)
+            // 2. КОНВЕРТАЦІЯ В RF (TX -> RF)
+            // Це вважається "корисною працею" або складним процесом. Тут досвід НАРАХОВУЄМО.
             neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(cap -> {
                 if (cap.canReceive()) {
-                    int acceptedRf = cap.receiveEnergy(Math.min(be.storedEnergy * 10, 250), false);
-                    be.extractTacionEnergy(acceptedRf / 10, false);
-                    player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e -> e.addExperience((acceptedRf / 10f) * 0.2f, player));
+                    int toTransferRf = Math.min(be.storedEnergy * 10, 500);
+                    int acceptedRf = cap.receiveEnergy(toTransferRf, false);
+                    if (acceptedRf > 0) {
+                        int tacionEquivalent = acceptedRf / 10;
+                        be.extractTacionEnergy(tacionEquivalent, false);
+
+                        // Нараховуємо досвід тільки за успішну конвертацію в RF
+                        player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e ->
+                                e.addExperience(tacionEquivalent * 0.15f, player));
+                    }
                 }
             });
         }
     }
-
     private static boolean checkAnyConnections(Level level, BlockPos pos) {
         for (Direction dir : Direction.values()) {
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));

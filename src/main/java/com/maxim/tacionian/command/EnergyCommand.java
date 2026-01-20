@@ -1,5 +1,6 @@
 package com.maxim.tacionian.command;
 
+import com.maxim.tacionian.config.TacionianConfig;
 import com.maxim.tacionian.energy.PlayerEnergy;
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
 import com.maxim.tacionian.network.EnergySyncPacket;
@@ -35,7 +36,7 @@ public class EnergyCommand {
                         .then(Commands.literal("set")
                                 .then(Commands.argument("targets", EntityArgument.players())
                                         // ВИПРАВЛЕНО: Змінено ліміт з 10 на 100
-                                        .then(Commands.argument("level", IntegerArgumentType.integer(1, PlayerEnergy.MAX_LEVEL))
+                                        .then(Commands.argument("level", IntegerArgumentType.integer(1, TacionianConfig.MAX_LEVEL.get()))
                                                 .executes(context -> setLevel(context.getSource(), EntityArgument.getPlayers(context, "targets"), IntegerArgumentType.getInteger(context, "level")))
                                         )
                                 )
