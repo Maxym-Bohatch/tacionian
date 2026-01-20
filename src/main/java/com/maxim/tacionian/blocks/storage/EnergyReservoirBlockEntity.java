@@ -8,12 +8,17 @@ import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 
 public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonStorage {
     private int energy = 0;
@@ -31,7 +36,7 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         int toAdd = Math.min(amount, space);
         if (!simulate && toAdd > 0) {
             energy += toAdd;
-            updateBlock(); // Синхронізація при зміні
+            updateBlock();
         }
         return toAdd;
     }
@@ -41,12 +46,49 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         int toExtract = Math.min(amount, energy);
         if (!simulate && toExtract > 0) {
             energy -= toExtract;
-            updateBlock(); // Синхронізація при зміні
+            updateBlock();
         }
         return toExtract;
     }
 
-    // Викликає оновлення блоку для клієнтів
+    // Тікер для автоматичної взаємодії з кабелями
+    public static void tick(Level level, BlockPos pos, BlockState state, EnergyReservoirBlockEntity be) {
+        if (level.isClientSide) return;
+
+        // 1. ПРИЙОМ: Резервуар викачує енергію з кабелів/блоків, які мають енергію
+        if (be.energy < be.MAX_CAPACITY) {
+            for (Direction dir : Direction.values()) {
+                BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+                if (neighbor == null) continue;
+
+                neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
+                    // Резервуар забирає до 100 Tx за тік (швидке завантаження)
+                    int toPull = Math.min(be.MAX_CAPACITY - be.energy, 100);
+                    int pulled = cap.extractTacionEnergy(toPull, false);
+                    be.receiveTacionEnergy(pulled, false);
+                });
+            }
+        }
+
+        // 2. РОЗДАЧА: Якщо ти захочеш, щоб резервуар сам живив кабелі (опціонально)
+        // Якщо це просто сховище, цей блок можна закоментувати, щоб енергія виходила тільки за запитом споживача
+        /*
+        if (be.energy > 0) {
+            for (Direction dir : Direction.values()) {
+                BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+                if (neighbor == null) continue;
+                neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
+                    if (cap.getEnergy() < cap.getMaxCapacity()) {
+                        int toPush = Math.min(be.energy, 100);
+                        int accepted = cap.receiveTacionEnergy(toPush, false);
+                        be.extractTacionEnergy(accepted, false);
+                    }
+                });
+            }
+        }
+        */
+    }
+
     private void updateBlock() {
         setChanged();
         if (level != null && !level.isClientSide) {
@@ -81,8 +123,6 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         nbt.putInt("StoredTacion", energy);
     }
 
-    // === СИНХРОНІЗАЦІЯ ДАНИХ (ВАЖЛИВО) ===
-
     @Override
     public CompoundTag getUpdateTag() {
         CompoundTag tag = super.getUpdateTag();
@@ -96,7 +136,6 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         return ClientboundBlockEntityDataPacket.create(this);
     }
 
-    // Ось цей метод приймає пакет на клієнті і оновлює дані!
     @Override
     public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) {
         CompoundTag tag = pkt.getTag();
