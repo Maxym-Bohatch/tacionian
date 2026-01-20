@@ -20,9 +20,8 @@
   "tooltip.tacionian.stabilization_plate.desc": "§7Passively stabilizes the core. §eCrouch to discharge.",
 
   "block.tacionian.energy_reservoir": "Energy Reservoir",
-  "block.tacionian.energy_reservoir.controls": "§6RMB §7- info/store, §6Shift+RMB §7- withdraw",
   "tooltip.tacionian.energy_reservoir.desc": "§7High-capacity storage for Tachyon energy.",
-  "block.tacionian.energy_reservoir.warning": "§cWarning: Energy dissipates into the atmosphere when broken!",
+  "tooltip.tacionian.energy_reservoir.unstable_note": "§dNote: Energy is lost when the block is dismantled.",
   "tooltip.tacionian.energy_reservoir.energy": "Stored: §b%s / %s Tx",
 
   "block.tacionian.wireless_energy_interface": "Wireless Interface",

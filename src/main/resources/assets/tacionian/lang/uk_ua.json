@@ -20,9 +20,8 @@
   "tooltip.tacionian.stabilization_plate.desc": "§7Пасивно стабілізує ядро. §eПрисядьте, щоб розрядити.",
 
   "block.tacionian.energy_reservoir": "Енергетичний резервуар",
-  "block.tacionian.energy_reservoir.controls": "§6ПКМ §7- інфо/заливка, §6Shift+ПКМ §7- забрати",
   "tooltip.tacionian.energy_reservoir.desc": "§7Ємне сховище для тахіонної енергії.",
-  "block.tacionian.energy_reservoir.warning": "§cУвага: Енергія випаровується в атмосферу при руйнуванні!",
+  "tooltip.tacionian.energy_reservoir.unstable_note": "§dПримітка: Енергія розсіюється при демонтажі блоку.",
   "tooltip.tacionian.energy_reservoir.energy": "Збережено: §b%s / %s Tx",
 
   "block.tacionian.wireless_energy_interface": "Безпровідний інтерфейс",
