@@ -25,34 +25,40 @@ public class TachyonCableBlockEntity extends BlockEntity implements ITachyonStor
         super(ModBlockEntities.CABLE_BE.get(), pos, state);
     }
 
-    public void setNetwork(TachyonNetwork net) {
-        this.network = net;
-    }
-
     public static void tick(Level level, BlockPos pos, BlockState state, TachyonCableBlockEntity be) {
         if (level.isClientSide) return;
 
-        if (be.network == null) {
-            be.refreshNetwork();
-        }
+        if (be.network == null) be.refreshNetwork();
 
         if (be.network != null) {
             be.network.tickMaster(be, level);
 
-            // СИНХРОНІЗАЦІЯ ВІЗУАЛУ
+            // ВИЗУАЛЬНЕ ОНОВЛЕННЯ:
+            // Кабель вважається POWERED, якщо енергія є в мережі АБО у сусіда-резервуара
             boolean hasEnergy = be.network.getEnergy() > 0;
+
+            if (!hasEnergy) {
+                for (Direction dir : Direction.values()) {
+                    BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+                    // Перевіряємо капабіліті тахіонів у сусіда
+                    if (neighbor != null && !(neighbor instanceof TachyonCableBlockEntity)) {
+                        var cap = neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite());
+                        if (cap.isPresent() && cap.map(ITachyonStorage::getEnergy).orElse(0) > 0) {
+                            hasEnergy = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
             if (state.getValue(TachyonCableBlock.POWERED) != hasEnergy) {
-                // Оновлюємо стан на сервері
                 level.setBlock(pos, state.setValue(TachyonCableBlock.POWERED, hasEnergy), 3);
-                // Відправляємо пакет оновлення всім гравцям поруч
-                level.sendBlockUpdated(pos, state, state.setValue(TachyonCableBlock.POWERED, hasEnergy), 3);
             }
         }
     }
 
     public void refreshNetwork() {
         if (level == null || level.isClientSide) return;
-
         for (Direction dir : Direction.values()) {
             BlockEntity neighbor = level.getBlockEntity(worldPosition.relative(dir));
             if (neighbor instanceof TachyonCableBlockEntity otherCable && otherCable.network != null) {
@@ -64,7 +70,6 @@ public class TachyonCableBlockEntity extends BlockEntity implements ITachyonStor
                 }
             }
         }
-
         if (this.network == null) {
             this.network = new TachyonNetwork();
             this.network.addCable(this);
@@ -77,42 +82,8 @@ public class TachyonCableBlockEntity extends BlockEntity implements ITachyonStor
         super.setRemoved();
     }
 
-    // МЕРЕЖЕВА СИНХРОНІЗАЦІЯ (S2C)
-    @Override
-    public CompoundTag getUpdateTag() {
-        CompoundTag tag = super.getUpdateTag();
-        tag.putBoolean("powered", network != null && network.getEnergy() > 0);
-        return tag;
-    }
-
-    @Nullable
-    @Override
-    public ClientboundBlockEntityDataPacket getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
-    }
-
-    @Override
-    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) {
-        if (pkt.getTag() != null) {
-            boolean isPowered = pkt.getTag().getBoolean("powered");
-            if (level != null) {
-                BlockState state = level.getBlockState(worldPosition);
-                if (state.hasProperty(TachyonCableBlock.POWERED) && state.getValue(TachyonCableBlock.POWERED) != isPowered) {
-                    level.setBlock(worldPosition, state.setValue(TachyonCableBlock.POWERED, isPowered), 3);
-                }
-            }
-        }
-    }
-
-    // ITachyonStorage
-    @Override public int receiveTacionEnergy(int amount, boolean simulate) {
-        return network != null ? network.receiveEnergy(amount, simulate) : 0;
-    }
-
-    @Override public int extractTacionEnergy(int amount, boolean simulate) {
-        return network != null ? network.extractEnergy(amount, simulate) : 0;
-    }
-
+    @Override public int receiveTacionEnergy(int amount, boolean simulate) { return network != null ? network.receiveEnergy(amount, simulate) : 0; }
+    @Override public int extractTacionEnergy(int amount, boolean simulate) { return network != null ? network.extractEnergy(amount, simulate) : 0; }
     @Override public int getEnergy() { return network != null ? network.getEnergy() : 0; }
     @Override public int getMaxCapacity() { return network != null ? network.getCapacity() : 0; }
 

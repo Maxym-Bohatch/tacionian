@@ -41,6 +41,12 @@ public class ModEvents {
                 CompoundTag nbt = new CompoundTag();
                 oldStore.saveNBTData(nbt);
                 newStore.loadNBTData(nbt);
+
+                // ВИПРАВЛЕННЯ СМЕРТЕЛЬНОЇ ПЕТЛІ: Якщо це смерть, скидаємо енергію на 0
+                if (event.isWasDeath()) {
+                    newStore.setEnergy(0);
+                    newStore.setRemoteStabilized(false);
+                }
             });
         });
     }
@@ -55,32 +61,27 @@ public class ModEvents {
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> energy.sync(player));
+            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
+                energy.setEnergy(0);
+                energy.sync(player);
+            });
         }
     }
 
-    // НОВА ПОДІЯ: Візуал та звук при смерті від тахіонів
     @SubscribeEvent
     public static void onPlayerDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             DamageSource source = event.getSource();
-
-            // Перевіряємо тип шкоди через наш статичний ключ
             if (source.is(PlayerEnergyEffects.TACHYON_DAMAGE_TYPE)) {
                 ServerLevel level = player.serverLevel();
-                double x = player.getX();
-                double y = player.getY() + 1.0;
-                double z = player.getZ();
+                double x = player.getX(); double y = player.getY() + 1.0; double z = player.getZ();
 
-                // Візуальні ефекти (Вибух + Хвиля + Портал)
                 level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, x, y, z, 1, 0, 0, 0, 0);
                 level.sendParticles(ParticleTypes.SONIC_BOOM, x, y, z, 1, 0, 0, 0, 0);
                 level.sendParticles(ParticleTypes.PORTAL, x, y, z, 40, 0.2, 0.5, 0.2, 0.5);
 
-                // Звукові ефекти (Вибух + Гул вимкнення + Електричний писк)
                 level.playSound(null, x, y, z, SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS, 1.0f, 0.5f);
                 level.playSound(null, x, y, z, SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 1.5f, 0.1f);
-                level.playSound(null, x, y, z, SoundEvents.ZOMBIE_VILLAGER_CONVERTED, SoundSource.PLAYERS, 0.5f, 2.0f);
             }
         }
     }
@@ -88,17 +89,14 @@ public class ModEvents {
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.side.isServer() && event.phase == TickEvent.Phase.END && event.player instanceof ServerPlayer player) {
+            // Захист на 3 секунди після спавну, щоб не вбило миттєво
+            if (player.tickCount < 60) return;
+
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                // Обробка стабілізаторів та предметів поруч
                 EnergyControlResolver.resolve(player, energy);
-
-                // Логіка ядра
                 energy.tick(player);
-
-                // Візуальні ефекти (вогонь, частинки, нанесення шкоди)
                 PlayerEnergyEffects.apply(player, energy);
 
-                // Синхронізація з клієнтом кожні 5 тіків
                 if (player.level().getGameTime() % 5 == 0) {
                     energy.sync(player);
                 }
