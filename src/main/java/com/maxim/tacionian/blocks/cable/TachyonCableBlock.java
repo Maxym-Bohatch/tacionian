@@ -89,8 +89,8 @@ public class TachyonCableBlock extends Block implements EntityBlock {
                 .setValue(SOUTH, canConnectTo(level, pos.south(), Direction.NORTH))
                 .setValue(EAST, canConnectTo(level, pos.east(), Direction.WEST))
                 .setValue(WEST, canConnectTo(level, pos.west(), Direction.EAST))
-                .setValue(UP, canConnectTo(level, pos.up(), Direction.DOWN))
-                .setValue(DOWN, canConnectTo(level, pos.down(), Direction.UP));
+                .setValue(UP, canConnectTo(level, pos.above(), Direction.DOWN))
+                .setValue(DOWN, canConnectTo(level, pos.below(), Direction.UP));
     }
 
     private boolean canConnectTo(LevelAccessor level, BlockPos neighborPos, Direction side) {
