@@ -23,14 +23,14 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
-    private int mode = 0; // 0:Safe (75%), 1:Balanced (40%), 2:Performance (15%), 3:Unrestricted (0%)
+    private int mode = 0;
 
-    // Додаємо власну капабіліті, щоб блок розпізнавався ТХ-кабелями
+    // Оновлений анонімний клас з новими назвами методів
     private final ITachyonStorage tachyonHandler = new ITachyonStorage() {
-        @Override public int receiveTacion(int amount, boolean simulate) { return 0; } // Інтерфейс тільки віддає енергію
-        @Override public int extractTacion(int amount, boolean simulate) { return 0; }
-        @Override public int getTacionStored() { return 0; }
-        @Override public int getMaxTacionCapacity() { return 1000; }
+        @Override public int receiveTacionEnergy(int amount, boolean simulate) { return 0; }
+        @Override public int extractTacionEnergy(int amount, boolean simulate) { return 0; }
+        @Override public int getEnergy() { return 0; }
+        @Override public int getMaxCapacity() { return 1000; }
     };
 
     private final LazyOptional<ITachyonStorage> tachyonHolder = LazyOptional.of(() -> tachyonHandler);
@@ -84,7 +84,6 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
 
                     if (machinesNeedPower) {
                         pEnergy.setRemoteNoDrain(false);
-
                         if (level.getGameTime() % 10 == 0) {
                             if (currentPercent > threshold) {
                                 processEnergyTransfer(level, pos, serverPlayer, pEnergy);
@@ -92,10 +91,8 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
                             pEnergy.sync(serverPlayer);
                         }
                     } else {
-                        // Якщо база заповнена, але енергії забагато — скидаємо в повітря (івент для аддонів)
                         if (currentPercent > threshold) {
                             pEnergy.setRemoteNoDrain(true);
-
                             if (level.getGameTime() % 20 == 0) {
                                 int waste = pEnergy.extractEnergyPure(25, false);
                                 if (waste > 0) {
@@ -107,10 +104,7 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
                         } else {
                             pEnergy.setRemoteNoDrain(false);
                         }
-
-                        if (level.getGameTime() % 10 == 0) {
-                            pEnergy.sync(serverPlayer);
-                        }
+                        if (level.getGameTime() % 10 == 0) pEnergy.sync(serverPlayer);
                     }
                 });
             }
@@ -121,11 +115,12 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
         for (Direction dir : Direction.values()) {
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor != null) {
-                // Перевіряємо і RF, і TX системи
                 boolean needsRF = neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite())
                         .map(cap -> cap.canReceive() && cap.receiveEnergy(10, true) > 0).orElse(false);
+
+                // Тут змінено getTacionStored -> getEnergy та getMaxTacionCapacity -> getMaxCapacity
                 boolean needsTX = neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite())
-                        .map(cap -> cap.getTacionStored() < cap.getMaxTacionCapacity()).orElse(false);
+                        .map(cap -> cap.getEnergy() < cap.getMaxCapacity()).orElse(false);
 
                 if (needsRF || needsTX) return true;
             }
@@ -138,7 +133,6 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
         int txForRF = 0;
         int txForTX = 0;
 
-        // 1. Рахуємо потреби
         for (Direction dir : Direction.values()) {
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor == null) continue;
@@ -146,17 +140,14 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
             txForRF += neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite())
                     .map(cap -> cap.receiveEnergy(txToTakeMax * 10, true) / 10).orElse(0);
 
+            // Тут змінено receiveTacion -> receiveTacionEnergy
             txForTX += neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite())
-                    .map(cap -> cap.receiveTacion(txToTakeMax, true)).orElse(0);
+                    .map(cap -> cap.receiveTacionEnergy(txToTakeMax, true)).orElse(0);
         }
 
         if (txForRF <= 0 && txForTX <= 0) return;
 
-        // 2. Розподіляємо та виконуємо передачу
-        int totalExtracted = 0;
-        int rfPart = 0;
-        int txPart = 0;
-
+        int totalExtracted, rfPart = 0, txPart = 0;
         if (txForRF > 0 && txForTX > 0) {
             totalExtracted = Math.min(txToTakeMax, txForRF + txForTX);
             rfPart = totalExtracted / 2;
@@ -169,51 +160,34 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity {
             totalExtracted = txPart;
         }
 
-        // Реально передаємо енергію в блоки
         if (rfPart > 0) distribute(level, pos, rfPart, true);
         if (txPart > 0) distribute(level, pos, txPart, false);
 
-        // 3. РОЗДІЛЕННЯ ДОСВІДУ
-        if (totalExtracted > 0) {
-            // За ту частину, що пішла в RF — даємо досвід
-            if (rfPart > 0) {
-                pEnergy.extractEnergyWithExp(rfPart, false, serverPlayer);
-            }
-
-            // За ту частину, що пішла в ТХ (кабелі/сховища) — просто забираємо енергію
-            if (txPart > 0) {
-                pEnergy.extractEnergyPure(txPart, false);
-            }
-        }
+        if (rfPart > 0) pEnergy.extractEnergyWithExp(rfPart, false, serverPlayer);
+        if (txPart > 0) pEnergy.extractEnergyPure(txPart, false);
     }
-
 
     private static void distribute(Level level, BlockPos pos, int amount, boolean isRF) {
         int remaining = isRF ? amount * 10 : amount;
-
         for (Direction dir : Direction.values()) {
             if (remaining <= 0) break;
-
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor != null) {
                 if (isRF) {
-                    // Використовуємо звичайний ifPresent з оновленням зовнішньої змінної через масив або просту логіку
                     var cap = neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite());
                     if (cap.isPresent()) {
-                        int received = cap.orElse(null).receiveEnergy(remaining, false);
-                        remaining -= received;
+                        remaining -= cap.orElse(null).receiveEnergy(remaining, false);
                     }
                 } else {
                     var cap = neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite());
                     if (cap.isPresent()) {
-                        int received = cap.orElse(null).receiveTacion(remaining, false);
-                        remaining -= received;
+                        // Тут змінено receiveTacion -> receiveTacionEnergy
+                        remaining -= cap.orElse(null).receiveTacionEnergy(remaining, false);
                     }
                 }
             }
         }
     }
-
 
     public Component getModeName() {
         return switch (mode) {

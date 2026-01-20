@@ -17,16 +17,17 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
     private int energy = 0;
     private final int MAX_CAPACITY = 100000;
 
-    // Холдер, який ми віддаємо сусідам (кабелям)
+    // Холдер для Forge Capability
     private final LazyOptional<ITachyonStorage> holder = LazyOptional.of(() -> this);
 
     public EnergyReservoirBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.RESERVOIR_BE.get(), pos, state);
     }
 
-    // --- Реалізація ITachyonStorage ---
+    // --- Реалізація ITachyonStorage (Назви тепер ТОЧНО як в інтерфейсі) ---
+
     @Override
-    public int receiveTacion(int amount, boolean simulate) {
+    public int receiveTacionEnergy(int amount, boolean simulate) {
         int space = MAX_CAPACITY - energy;
         int toAdd = Math.min(amount, space);
         if (!simulate && toAdd > 0) {
@@ -37,7 +38,7 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
     }
 
     @Override
-    public int extractTacion(int amount, boolean simulate) {
+    public int extractTacionEnergy(int amount, boolean simulate) {
         int toExtract = Math.min(amount, energy);
         if (!simulate && toExtract > 0) {
             energy -= toExtract;
@@ -46,10 +47,18 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         return toExtract;
     }
 
-    @Override public int getTacionStored() { return energy; }
-    @Override public int getMaxTacionCapacity() { return MAX_CAPACITY; }
+    @Override
+    public int getEnergy() {
+        return energy;
+    }
+
+    @Override
+    public int getMaxCapacity() {
+        return MAX_CAPACITY;
+    }
 
     // --- Capability System ---
+
     @Override
     public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
         if (cap == ModCapabilities.TACHYON_STORAGE) {
@@ -61,10 +70,11 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
     @Override
     public void invalidateCaps() {
         super.invalidateCaps();
-        holder.invalidate(); // Важливо закривати холдер при видаленні блоку
+        holder.invalidate();
     }
 
-    // --- Збереження даних ---
+    // --- Збереження даних (NBT) ---
+
     @Override
     public void load(CompoundTag nbt) {
         super.load(nbt);
