@@ -68,10 +68,17 @@ public class EnergyStabilizerItem extends Item {
 
                 // Зливаємо енергію тільки якщо вона вища за поріг
                 if (pEnergy.getEnergyPercent() > threshold) {
-                    // Зливаємо 50 одиниць за кожен "тік" використання
-                    pEnergy.extractEnergyPure(50, false);
+                    // 1. Забираємо енергію у гравця
+                    int extracted = pEnergy.extractEnergyPure(50, false);
 
-                    // Синхронізуємо HUD кожні 5 тіків, щоб не спамити пакетами
+                    // 2. Викидаємо її в світ через івент (якщо щось реально забрали)
+                    if (extracted > 0) {
+                        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
+                                new com.maxim.tacionian.api.events.TachyonWasteEvent(level, player.blockPosition(), extracted)
+                        );
+                    }
+
+                    // 3. Синхронізуємо HUD
                     if (count % 5 == 0) pEnergy.sync(player);
                 }
             });

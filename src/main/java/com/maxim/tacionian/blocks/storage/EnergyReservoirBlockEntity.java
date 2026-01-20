@@ -1,20 +1,32 @@
 package com.maxim.tacionian.blocks.storage;
 
+import com.maxim.tacionian.api.energy.ITachyonStorage;
 import com.maxim.tacionian.register.ModBlockEntities;
+import com.maxim.tacionian.register.ModCapabilities;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.util.LazyOptional;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-public class EnergyReservoirBlockEntity extends BlockEntity {
+public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonStorage {
     private int energy = 0;
     private final int MAX_CAPACITY = 100000;
+
+    // Холдер, який ми віддаємо сусідам (кабелям)
+    private final LazyOptional<ITachyonStorage> holder = LazyOptional.of(() -> this);
 
     public EnergyReservoirBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.RESERVOIR_BE.get(), pos, state);
     }
 
-    public int receiveTacionEnergy(int amount, boolean simulate) {
+    // --- Реалізація ITachyonStorage ---
+    @Override
+    public int receiveTacion(int amount, boolean simulate) {
         int space = MAX_CAPACITY - energy;
         int toAdd = Math.min(amount, space);
         if (!simulate && toAdd > 0) {
@@ -24,7 +36,8 @@ public class EnergyReservoirBlockEntity extends BlockEntity {
         return toAdd;
     }
 
-    public int extractTacionEnergy(int amount, boolean simulate) {
+    @Override
+    public int extractTacion(int amount, boolean simulate) {
         int toExtract = Math.min(amount, energy);
         if (!simulate && toExtract > 0) {
             energy -= toExtract;
@@ -33,9 +46,25 @@ public class EnergyReservoirBlockEntity extends BlockEntity {
         return toExtract;
     }
 
-    public int getEnergy() { return energy; }
-    public int getMaxCapacity() { return MAX_CAPACITY; }
+    @Override public int getTacionStored() { return energy; }
+    @Override public int getMaxTacionCapacity() { return MAX_CAPACITY; }
 
+    // --- Capability System ---
+    @Override
+    public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
+        if (cap == ModCapabilities.TACHYON_STORAGE) {
+            return holder.cast();
+        }
+        return super.getCapability(cap, side);
+    }
+
+    @Override
+    public void invalidateCaps() {
+        super.invalidateCaps();
+        holder.invalidate(); // Важливо закривати холдер при видаленні блоку
+    }
+
+    // --- Збереження даних ---
     @Override
     public void load(CompoundTag nbt) {
         super.load(nbt);
@@ -48,7 +77,6 @@ public class EnergyReservoirBlockEntity extends BlockEntity {
         nbt.putInt("StoredTacion", energy);
     }
 
-    // Потрібно для того, щоб при ламанні блоку дані могли зберегтися в предмет (опціонально)
     @Override
     public CompoundTag getUpdateTag() {
         return saveWithoutMetadata();

@@ -30,12 +30,22 @@ public class EnergyControlResolver {
         BlockPos pos = player.blockPosition().below();
         BlockState state = player.level().getBlockState(pos);
 
+        // У методі resolve, всередині умови плити:
         if (state.is(ModBlocks.STABILIZATION_PLATE.get())) {
-            energy.setRemoteStabilized(true); // Заводить таймер
+            energy.setRemoteStabilized(true);
             if (player.isCrouching() && energy.getEnergyPercent() > 5) {
-                energy.extractEnergyPure(40, false);
-                if (player.tickCount % 4 == 0) {
-                    player.serverLevel().sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY(), player.getZ(), 3, 0.1, 0.1, 0.1, 0.01);
+                int extracted = energy.extractEnergyPure(40, false);
+
+                if (extracted > 0) {
+                    // ВИКЛИКАЄМО ІВЕНТ
+                    net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
+                            new com.maxim.tacionian.api.events.TachyonWasteEvent(player.level(), pos, extracted)
+                    );
+
+                    if (player.tickCount % 4 == 0) {
+                        player.serverLevel().sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                                player.getX(), player.getY(), player.getZ(), 3, 0.1, 0.1, 0.1, 0.01);
+                    }
                 }
             }
         }
