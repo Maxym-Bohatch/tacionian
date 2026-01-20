@@ -16,6 +16,10 @@ import net.minecraftforge.energy.IEnergyStorage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
 public class TachyonChargerBlockEntity extends BlockEntity implements ITachyonStorage {
     private int storedEnergy = 0;
     private final int MAX_CAPACITY = 500;
@@ -38,24 +42,16 @@ public class TachyonChargerBlockEntity extends BlockEntity implements ITachyonSt
         super(ModBlockEntities.CHARGER_BE.get(), pos, state);
     }
 
-    @Override
-    public int receiveTacionEnergy(int amount, boolean simulate) {
+    @Override public int receiveTacionEnergy(int amount, boolean simulate) {
         int space = MAX_CAPACITY - storedEnergy;
         int toReceive = Math.min(amount, space);
-        if (!simulate && toReceive > 0) {
-            storedEnergy += toReceive;
-            setChanged();
-        }
+        if (!simulate && toReceive > 0) { storedEnergy += toReceive; setChanged(); }
         return toReceive;
     }
 
-    @Override
-    public int extractTacionEnergy(int amount, boolean simulate) {
+    @Override public int extractTacionEnergy(int amount, boolean simulate) {
         int toExtract = Math.min(storedEnergy, amount);
-        if (!simulate && toExtract > 0) {
-            storedEnergy -= toExtract;
-            setChanged();
-        }
+        if (!simulate && toExtract > 0) { storedEnergy -= toExtract; setChanged(); }
         return toExtract;
     }
 
@@ -72,39 +68,33 @@ public class TachyonChargerBlockEntity extends BlockEntity implements ITachyonSt
     public static void tick(Level level, BlockPos pos, BlockState state, TachyonChargerBlockEntity be) {
         if (level.isClientSide || be.storedEnergy <= 0) return;
 
+        List<Consumer<Integer>> targets = new ArrayList<>();
         for (Direction dir : Direction.values()) {
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor == null) continue;
 
-            // Перевіряємо TX (Твій мод)
-            neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(txCap -> {
-                int toTransfer = Math.min(be.storedEnergy, 20); // Ліміт передачі за тік
-                int accepted = txCap.receiveTacionEnergy(toTransfer, false);
-                be.extractTacionEnergy(accepted, false);
+            neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
+                if (cap.getEnergy() < cap.getMaxCapacity()) {
+                    targets.add(amt -> be.extractTacionEnergy(cap.receiveTacionEnergy(amt, false), false));
+                }
             });
 
-            // Перевіряємо RF (Forge) - ВАЖЛИВО: перевіряємо навіть якщо TX спрацював
-            if (be.storedEnergy > 0) {
-                neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(rfCap -> {
-                    if (rfCap.canReceive()) {
-                        int rfToGive = Math.min(be.storedEnergy * 10, 200); // 1 TX = 10 RF
-                        int acceptedRF = rfCap.receiveEnergy(rfToGive, false);
-                        be.extractTacionEnergy(acceptedRF / 10, false);
-                    }
-                });
+            neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(cap -> {
+                if (cap.canReceive() && cap.receiveEnergy(10, true) > 0) {
+                    targets.add(amt -> be.extractTacionEnergy(cap.receiveEnergy(amt * 10, false) / 10, false));
+                }
+            });
+        }
+
+        if (!targets.isEmpty()) {
+            int share = Math.max(1, be.storedEnergy / targets.size());
+            for (Consumer<Integer> target : targets) {
+                if (be.storedEnergy <= 0) break;
+                target.accept(Math.min(share, 50));
             }
         }
     }
 
-    @Override
-    protected void saveAdditional(CompoundTag nbt) {
-        nbt.putInt("StoredEnergy", storedEnergy);
-        super.saveAdditional(nbt);
-    }
-
-    @Override
-    public void load(CompoundTag nbt) {
-        super.load(nbt);
-        this.storedEnergy = nbt.getInt("StoredEnergy");
-    }
+    @Override protected void saveAdditional(CompoundTag nbt) { nbt.putInt("StoredEnergy", storedEnergy); super.saveAdditional(nbt); }
+    @Override public void load(CompoundTag nbt) { super.load(nbt); this.storedEnergy = nbt.getInt("StoredEnergy"); }
 }

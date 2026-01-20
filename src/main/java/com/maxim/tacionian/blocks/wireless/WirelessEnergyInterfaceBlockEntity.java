@@ -23,12 +23,14 @@ import net.minecraftforge.energy.IEnergyStorage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements ITachyonStorage {
     private int mode = 0;
     private int storedEnergy = 0;
-    private final int MAX_CAPACITY = 500; // Твій новий маленький буфер
+    private final int MAX_CAPACITY = 500;
 
     private final LazyOptional<ITachyonStorage> tachyonHolder = LazyOptional.of(() -> this);
     private final LazyOptional<IEnergyStorage> rfHolder = LazyOptional.of(() -> new IEnergyStorage() {
@@ -83,12 +85,8 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
         AABB area = new AABB(pos).inflate(20);
         List<Player> players = level.getEntitiesOfClass(Player.class, area);
 
-        // ПОВЕРНУТО: Твої 4 режими роботи
         int threshold = switch (be.mode) {
-            case 0 -> 75; // Safe
-            case 1 -> 40; // Balanced
-            case 2 -> 15; // Performance
-            default -> 0; // Unrestricted
+            case 0 -> 75; case 1 -> 40; case 2 -> 15; default -> 0;
         };
 
         for (Player player : players) {
@@ -97,50 +95,55 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
                     pEnergy.setRemoteStabilized(true);
                     int currentPercent = pEnergy.getEnergyPercent();
 
-                    boolean machinesNeedPower = checkMachinesNeedPower(level, pos);
+                    boolean hasConnections = checkAnyConnections(level, pos);
 
-                    if (machinesNeedPower) {
+                    if (hasConnections) {
                         pEnergy.setRemoteNoDrain(false);
-                        // Якщо в буфері блока мало енергії і заряд гравця дозволяє режим — поповнюємо буфер
-                        if (be.storedEnergy < (be.MAX_CAPACITY * 0.9) && currentPercent > threshold) {
-                            int taken = pEnergy.extractEnergyPure(100, false);
+
+                        // Якщо є споживачі (машини), качаємо на повну. Якщо лише кабелі — тримаємо 50%, щоб не мигали.
+                        boolean machinesActive = checkMachinesNeedPower(level, pos);
+                        int targetFill = machinesActive ? be.MAX_CAPACITY : be.MAX_CAPACITY / 2;
+
+                        if (be.storedEnergy < targetFill && currentPercent > threshold) {
+                            int taken = pEnergy.extractEnergyPure(50, false);
                             be.receiveTacionEnergy(taken, false);
                         }
 
-                        // Роздаємо енергію сусідам
-                        if (level.getGameTime() % 10 == 0) {
-                            processEnergyTransfer(level, pos, be);
-                            pEnergy.sync(serverPlayer);
-                        }
+                        // Плавна роздача кожного тіку
+                        processEnergyTransfer(level, pos, be);
                     } else {
-                        // Логіка простою (Waste Event)
-                        if (currentPercent > threshold) {
-                            pEnergy.setRemoteNoDrain(true);
-                            if (level.getGameTime() % 20 == 0) {
-                                int waste = pEnergy.extractEnergyPure(25, false);
-                                if (waste > 0) {
-                                    MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, waste));
-                                }
-                            }
-                        } else {
-                            pEnergy.setRemoteNoDrain(false);
+                        pEnergy.setRemoteNoDrain(currentPercent > threshold);
+                        if (currentPercent > threshold && level.getGameTime() % 20 == 0) {
+                            int waste = pEnergy.extractEnergyPure(25, false);
+                            if (waste > 0) MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, waste));
                         }
-                        if (level.getGameTime() % 10 == 0) pEnergy.sync(serverPlayer);
                     }
+                    if (level.getGameTime() % 10 == 0) pEnergy.sync(serverPlayer);
                 });
             }
         }
+    }
+
+    private static boolean checkAnyConnections(Level level, BlockPos pos) {
+        for (Direction dir : Direction.values()) {
+            BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+            if (neighbor != null) {
+                if (neighbor.getCapability(ModCapabilities.TACHYON_STORAGE).isPresent() ||
+                        neighbor.getCapability(ForgeCapabilities.ENERGY).isPresent()) return true;
+            }
+        }
+        return false;
     }
 
     private static boolean checkMachinesNeedPower(Level level, BlockPos pos) {
         for (Direction dir : Direction.values()) {
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor != null) {
-                boolean needsRF = neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite())
+                boolean rf = neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite())
                         .map(cap -> cap.canReceive() && cap.receiveEnergy(10, true) > 0).orElse(false);
-                boolean needsTX = neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite())
-                        .map(cap -> cap.getEnergy() < cap.getMaxCapacity()).orElse(false);
-                if (needsRF || needsTX) return true;
+                boolean tx = neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite())
+                        .map(cap -> cap.getEnergy() < cap.getMaxCapacity() * 0.9).orElse(false);
+                if (rf || tx) return true;
             }
         }
         return false;
@@ -149,36 +152,29 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
     private static void processEnergyTransfer(Level level, BlockPos pos, WirelessEnergyInterfaceBlockEntity be) {
         if (be.storedEnergy <= 0) return;
 
+        List<Consumer<Integer>> targets = new ArrayList<>();
         for (Direction dir : Direction.values()) {
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor == null) continue;
 
-            // 1. Обробка TX Кабелів/Машин
             neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                // Передаємо лише якщо в сусіді дійсно є місце
-                int space = cap.getMaxCapacity() - cap.getEnergy();
-                if (space > 0) {
-                    int toTransfer = Math.min(be.storedEnergy, Math.min(space, 20));
-                    int acceptedTX = cap.receiveTacionEnergy(toTransfer, false);
-                    be.extractTacionEnergy(acceptedTX, false);
+                if (cap.getEnergy() < cap.getMaxCapacity()) {
+                    targets.add(amt -> be.extractTacionEnergy(cap.receiveTacionEnergy(amt, false), false));
                 }
             });
 
-            // 2. Обробка RF Кабелів/Машин
-            if (be.storedEnergy > 0) {
-                neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(cap -> {
-                    if (cap.canReceive()) {
-                        // Перевіряємо скільки реально може прийняти (simulate = true)
-                        int maxRfToGive = Math.min(be.storedEnergy * 10, 200);
-                        int simulatedAccepted = cap.receiveEnergy(maxRfToGive, true);
+            neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(cap -> {
+                if (cap.canReceive() && cap.receiveEnergy(10, true) > 0) {
+                    targets.add(amt -> be.extractTacionEnergy(cap.receiveEnergy(amt * 10, false) / 10, false));
+                }
+            });
+        }
 
-                        if (simulatedAccepted > 0) {
-                            int acceptedRF = cap.receiveEnergy(simulatedAccepted, false);
-                            be.extractTacionEnergy(acceptedRF / 10, false);
-                        }
-                    }
-                });
-            }
+        if (targets.isEmpty()) return;
+        int share = Math.max(1, be.storedEnergy / targets.size());
+        for (Consumer<Integer> target : targets) {
+            if (be.storedEnergy <= 0) break;
+            target.accept(Math.min(share, 25));
         }
     }
 
