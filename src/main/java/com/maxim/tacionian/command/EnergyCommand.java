@@ -20,18 +20,47 @@ public class EnergyCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("tachyon")
                 .requires(source -> source.hasPermission(2))
-                .then(Commands.literal("set")
-                        .then(Commands.argument("targets", EntityArgument.players())
-                                .then(Commands.argument("amount", IntegerArgumentType.integer(0))
-                                        .executes(context -> setEnergy(context.getSource(), EntityArgument.getPlayers(context, "targets"), IntegerArgumentType.getInteger(context, "amount")))
+                // ЕНЕРГІЯ
+                .then(Commands.literal("energy")
+                        .then(Commands.literal("set")
+                                .then(Commands.argument("targets", EntityArgument.players())
+                                        .then(Commands.argument("amount", IntegerArgumentType.integer(0))
+                                                .executes(context -> setEnergy(context.getSource(), EntityArgument.getPlayers(context, "targets"), IntegerArgumentType.getInteger(context, "amount")))
+                                        )
                                 )
                         )
                 )
-                .then(Commands.literal("add")
-                        .then(Commands.argument("targets", EntityArgument.players())
-                                .then(Commands.argument("amount", IntegerArgumentType.integer())
-                                        .executes(context -> addEnergy(context.getSource(), EntityArgument.getPlayers(context, "targets"), IntegerArgumentType.getInteger(context, "amount")))
+                // РІВЕНЬ
+                .then(Commands.literal("level")
+                        .then(Commands.literal("set")
+                                .then(Commands.argument("targets", EntityArgument.players())
+                                        .then(Commands.argument("level", IntegerArgumentType.integer(1, 10))
+                                                .executes(context -> setLevel(context.getSource(), EntityArgument.getPlayers(context, "targets"), IntegerArgumentType.getInteger(context, "level")))
+                                        )
                                 )
+                        )
+                )
+                // НОВЕ: ДОСВІД (EXP)
+                .then(Commands.literal("exp")
+                        .then(Commands.literal("add")
+                                .then(Commands.argument("targets", EntityArgument.players())
+                                        .then(Commands.argument("amount", IntegerArgumentType.integer(0))
+                                                .executes(context -> addExp(context.getSource(), EntityArgument.getPlayers(context, "targets"), IntegerArgumentType.getInteger(context, "amount")))
+                                        )
+                                )
+                        )
+                        .then(Commands.literal("set")
+                                .then(Commands.argument("targets", EntityArgument.players())
+                                        .then(Commands.argument("amount", IntegerArgumentType.integer(0))
+                                                .executes(context -> setExp(context.getSource(), EntityArgument.getPlayers(context, "targets"), IntegerArgumentType.getInteger(context, "amount")))
+                                        )
+                                )
+                        )
+                )
+                // НОВЕ: ПОВНЕ СКИНУТТЯ (RESET)
+                .then(Commands.literal("reset")
+                        .then(Commands.argument("targets", EntityArgument.players())
+                                .executes(context -> resetStats(context.getSource(), EntityArgument.getPlayers(context, "targets")))
                         )
                 )
         );
@@ -44,23 +73,53 @@ public class EnergyCommand {
                 sync(player, energy);
             });
         }
-        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Енергію встановлено на §f" + amount + " §7для §f" + targets.size() + " §7гравців."), true);
+        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Енергію встановлено на §f" + amount), true);
         return targets.size();
     }
 
-    private static int addEnergy(CommandSourceStack source, Collection<ServerPlayer> targets, int amount) {
+    private static int setLevel(CommandSourceStack source, Collection<ServerPlayer> targets, int level) {
         for (ServerPlayer player : targets) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                if (amount >= 0) {
-                    energy.receiveEnergy(amount, false);
-                } else {
-                    // ВИПРАВЛЕНО: Видалено аргумент часу (player.level().getGameTime())
-                    energy.extractEnergyPure(Math.abs(amount), false);
-                }
+                energy.setLevel(level);
                 sync(player, energy);
             });
         }
-        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Енергію змінено на §f" + amount + " §7для §f" + targets.size() + " §7гравців."), true);
+        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Рівень встановлено на §6" + level), true);
+        return targets.size();
+    }
+
+    private static int addExp(CommandSourceStack source, Collection<ServerPlayer> targets, int amount) {
+        for (ServerPlayer player : targets) {
+            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
+                energy.addExperience((float) amount, player);
+                sync(player, energy);
+            });
+        }
+        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Додано §e" + amount + " §7досвіду."), true);
+        return targets.size();
+    }
+
+    private static int setExp(CommandSourceStack source, Collection<ServerPlayer> targets, int amount) {
+        for (ServerPlayer player : targets) {
+            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
+                energy.setExperience(amount); // Тепер цей метод використовується!
+                sync(player, energy);
+            });
+        }
+        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Досвід встановлено на §e" + amount), true);
+        return targets.size();
+    }
+
+    private static int resetStats(CommandSourceStack source, Collection<ServerPlayer> targets) {
+        for (ServerPlayer player : targets) {
+            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
+                energy.setEnergy(0);
+                energy.setLevel(1);
+                energy.setExperience(0);
+                sync(player, energy);
+            });
+        }
+        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Всі показники скинуто для §f" + targets.size() + " §7гравців."), true);
         return targets.size();
     }
 

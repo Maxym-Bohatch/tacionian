@@ -35,6 +35,9 @@
   "block.tacionian.safe_charger_block": "Safe Charging Block",
   "tooltip.tacionian.safe_charger_block.desc": "§7Smart charging station. Protects player from exhaustion.",
 
+  "block.tacionian.tachyon_cable": "Tachyon Cable",
+  "tooltip.tacionian.tachyon_cable.desc": "§7Distributes Tachyon energy between blocks and machines.",
+
   "message.tacionian.level_up": "§b[Tacionian] §fCore level increased to: §6%s",
   "message.tacionian.level_down": "§4§lWARNING! §cCore level downgraded to: %s",
   "message.tacionian.mode_switched": "Interface Mode: %s",

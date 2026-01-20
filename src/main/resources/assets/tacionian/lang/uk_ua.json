@@ -35,6 +35,9 @@
   "block.tacionian.safe_charger_block": "Безпечний зарядний блок",
   "tooltip.tacionian.safe_charger_block.desc": "§7Розумна станція. Захищає гравця від виснаження енергії.",
 
+  "block.tacionian.tachyon_cable": "Тахіонний кабель",
+  "tooltip.tacionian.tachyon_cable.desc": "§7Розподіляє тахіонну енергію між блоками та механізмами.",
+
   "message.tacionian.level_up": "§b[Tacionian] §fРівень ядра підвищено до: §6%s",
   "message.tacionian.level_down": "§4§lУВАГА! §cРівень ядра знижено до: %s",
   "message.tacionian.mode_switched": "Режим інтерфейсу: %s",

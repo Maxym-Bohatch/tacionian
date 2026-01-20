@@ -30,6 +30,7 @@ public class ModCreativeTab {
                         output.accept(ModBlocks.SAFE_CHARGER_BLOCK.get());
                         output.accept(ModBlocks.ENERGY_RESERVOIR.get());
                         output.accept(ModBlocks.WIRELESS_ENERGY_INTERFACE.get());
+                        output.accept(ModBlocks.TACHYON_CABLE.get());
                     })
                     .build());
 

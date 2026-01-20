@@ -44,7 +44,7 @@ public class PlayerEnergy {
         if (remoteStabilizedTimer > 0) remoteStabilizedTimer--;
         if (remoteNoDrainTimer > 0) remoteNoDrainTimer--;
 
-        // Пасивна безпека для новачків
+        // Пасивна безпека для новачків (рівень 5 і нижче)
         if (this.level <= 5 && !remoteStabilized && !remoteNoDrain) {
             int safeLimit = (int) (getMaxEnergy() * 0.95f);
             if (this.energy > safeLimit) this.energy = safeLimit;
@@ -59,11 +59,13 @@ public class PlayerEnergy {
             }
         }
 
+        // Штраф до досвіду при перевантаженні
         if (isOverloaded()) {
             float penalty = Math.max(0.1f, (this.energy - getMaxEnergy()) / 100.0f);
             decreaseExperience(penalty, serverPlayer);
         }
 
+        // Штраф при критично низькій енергії
         if (isCriticalLow() && this.level > 1 && !remoteNoDrain) {
             if (player.tickCount % 40 == 0) {
                 decreaseExperience(1.0f, serverPlayer);
@@ -71,30 +73,37 @@ public class PlayerEnergy {
         }
     }
 
-    // Оновлені сетери, що використовують таймери
+    // Сетери з таймерами для зовнішніх блоків/предметів
     public void setStabilized(boolean v) {
-        if (v) this.stabilizedTimer = 10;
+        if (v) this.stabilizedTimer = 15; // Трохи збільшено для надійності
     }
 
     public void setRemoteStabilized(boolean v) {
-        if (v) this.remoteStabilizedTimer = 10;
+        if (v) this.remoteStabilizedTimer = 15;
     }
 
     public void setRemoteNoDrain(boolean v) {
-        if (v) this.remoteNoDrainTimer = 10;
+        if (v) this.remoteNoDrainTimer = 15;
     }
 
-    // Решта методів без змін
+    // Система досвіду та рівнів
     public void addExperience(float amount, ServerPlayer player) {
+        if (amount <= 0) return;
         this.fractionalExperience += amount;
+
         if (this.fractionalExperience >= 1.0f) {
             int wholeExp = (int) this.fractionalExperience;
             this.experience += wholeExp;
             this.fractionalExperience -= wholeExp;
+
             while (this.experience >= getRequiredExp()) {
                 this.experience -= getRequiredExp();
                 this.level++;
-                if (player != null) player.sendSystemMessage(Component.literal("§b[Tacionian] §fРівень підвищено: §6" + this.level));
+                if (player != null) {
+                    // Використовуємо локалізацію для повідомлення про рівень
+                    player.sendSystemMessage(Component.translatable("message.tacionian.level_up", this.level)
+                            .withStyle(ChatFormatting.AQUA));
+                }
             }
             if (player != null) this.sync(player);
         }
@@ -105,16 +114,25 @@ public class PlayerEnergy {
         if (this.experience < 0) {
             if (this.level > 1) {
                 this.level--;
+                // Повертаємо 75% досвіду попереднього рівня, щоб не падати в нуль
                 this.experience = (int) (getRequiredExp() * 0.75f);
-                if (player != null) player.sendSystemMessage(Component.translatable("message.tacionian.level_down", this.level).withStyle(ChatFormatting.DARK_RED));
-            } else { this.experience = 0; }
+                if (player != null) {
+                    player.sendSystemMessage(Component.translatable("message.tacionian.level_down", this.level)
+                            .withStyle(ChatFormatting.DARK_RED));
+                }
+            } else {
+                this.experience = 0;
+            }
         }
         if (player != null && player.tickCount % 20 == 0) this.sync(player);
     }
 
+    // Базові сетери (використовуються в командах)
     public void setEnergy(int energy) { this.energy = Math.max(0, energy); }
     public void setLevel(int level) { this.level = Math.max(1, level); }
-    public void setExperience(int experience) { this.experience = experience; }
+    public void setExperience(int experience) { this.experience = Math.max(0, experience); }
+
+    // Геттери та розрахунки
     public int getEnergy() { return energy; }
     public int getLevel() { return level; }
     public int getExperience() { return experience; }
@@ -122,14 +140,18 @@ public class PlayerEnergy {
     public int getRequiredExp() { return 500 + (level * 100); }
     public int getRegenRate() { return 1 + (level / 3); }
     public int getEnergyPercent() { return (int)((float)energy / getMaxEnergy() * 100); }
-    public int getStabilityThreshold() {return 10;}
+
     public boolean isOverloaded() { return this.energy > getMaxEnergy(); }
     public boolean isCriticalLow() { return getEnergyPercent() < 5; }
     public boolean isStabilized() { return stabilized; }
     public boolean isRemoteStabilized() { return remoteStabilized; }
     public boolean isRemoteNoDrain() { return remoteNoDrain; }
 
-    public void receiveEnergy(int amount, boolean simulate) { if (!simulate) energy += amount; }
+    // Методи взаємодії з енергією
+    public void receiveEnergy(int amount, boolean simulate) {
+        if (!simulate) energy += amount;
+    }
+
     public int extractEnergyWithExp(int amount, boolean simulate, ServerPlayer player) {
         int toExt = Math.min(amount, energy);
         if (!simulate && toExt > 0) {
@@ -138,17 +160,25 @@ public class PlayerEnergy {
         }
         return toExt;
     }
+
     public int extractEnergyPure(int amount, boolean simulate) {
         int toExt = Math.min(amount, this.energy);
         if (!simulate) this.energy -= toExt;
         return toExt;
     }
+
+    // Збереження даних (NBT)
     public void saveNBTData(CompoundTag nbt) {
-        nbt.putInt("energy", energy); nbt.putInt("level", level);
-        nbt.putInt("exp", experience); nbt.putFloat("fractionalExp", fractionalExperience);
+        nbt.putInt("energy", energy);
+        nbt.putInt("level", level);
+        nbt.putInt("exp", experience);
+        nbt.putFloat("fractionalExp", fractionalExperience);
     }
+
     public void loadNBTData(CompoundTag nbt) {
-        this.energy = nbt.getInt("energy"); this.level = Math.max(1, nbt.getInt("level"));
-        this.experience = nbt.getInt("exp"); this.fractionalExperience = nbt.getFloat("fractionalExp");
+        this.energy = nbt.getInt("energy");
+        this.level = Math.max(1, nbt.getInt("level"));
+        this.experience = nbt.getInt("exp");
+        this.fractionalExperience = nbt.getFloat("fractionalExp");
     }
 }
