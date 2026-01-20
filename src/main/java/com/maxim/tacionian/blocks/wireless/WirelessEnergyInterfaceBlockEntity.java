@@ -9,7 +9,9 @@ import com.maxim.tacionian.register.ModCapabilities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -29,14 +31,19 @@ import java.util.List;
 public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements ITachyonStorage {
     private int mode = 0;
     private int storedEnergy = 0;
-    private final int MAX_CAPACITY = 1000;
+    private final int MAX_CAPACITY = 2000; // Трохи збільшимо буфер для плавності
 
-    private final LazyOptional<ITachyonStorage> tachyonHolder = LazyOptional.of(() -> this);
+    // Створюємо кастомний холдер, який забороняє вхід енергії зовні
+    private final LazyOptional<ITachyonStorage> tachyonHolder = LazyOptional.of(() -> new ITachyonStorage() {
+        @Override public int receiveTacionEnergy(int amount, boolean simulate) { return 0; } // ЗАБОРОНЕНО
+        @Override public int extractTacionEnergy(int amount, boolean simulate) { return WirelessEnergyInterfaceBlockEntity.this.extractTacionEnergy(amount, simulate); }
+        @Override public int getEnergy() { return storedEnergy; }
+        @Override public int getMaxCapacity() { return MAX_CAPACITY; }
+    });
+
     private final LazyOptional<IEnergyStorage> rfHolder = LazyOptional.of(() -> new IEnergyStorage() {
         @Override public int receiveEnergy(int maxReceive, boolean simulate) { return 0; }
-        @Override public int extractEnergy(int maxExtract, boolean simulate) {
-            return WirelessEnergyInterfaceBlockEntity.this.extractTacionEnergy(maxExtract / 10, simulate) * 10;
-        }
+        @Override public int extractEnergy(int maxExtract, boolean simulate) { return WirelessEnergyInterfaceBlockEntity.this.extractTacionEnergy(maxExtract / 10, simulate) * 10; }
         @Override public int getEnergyStored() { return storedEnergy * 10; }
         @Override public int getMaxEnergyStored() { return MAX_CAPACITY * 10; }
         @Override public boolean canExtract() { return true; }
@@ -47,16 +54,27 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
         super(ModBlockEntities.WIRELESS_BE.get(), pos, state);
     }
 
-    @Override public int receiveTacionEnergy(int amount, boolean simulate) {
+    // Внутрішній метод ТІЛЬКИ для гравця
+    public int receiveFromPlayer(int amount, boolean simulate) {
         int toAdd = Math.min(amount, MAX_CAPACITY - storedEnergy);
         if (!simulate && toAdd > 0) { storedEnergy += toAdd; setChanged(); }
         return toAdd;
     }
 
+    @Override public int receiveTacionEnergy(int amount, boolean simulate) { return 0; } // Для інтерфейсу ITachyonStorage
     @Override public int extractTacionEnergy(int amount, boolean simulate) {
         int toTake = Math.min(storedEnergy, amount);
         if (!simulate && toTake > 0) { storedEnergy -= toTake; setChanged(); }
         return toTake;
+    }
+
+    public void cycleMode(Player player) {
+        this.mode = (this.mode + 1) % 4;
+        setChanged();
+        if (level != null && !level.isClientSide) {
+            player.displayClientMessage(Component.translatable("message.tacionian.mode_switched", getModeName()), true);
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        }
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, WirelessEnergyInterfaceBlockEntity be) {
@@ -70,25 +88,18 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
             if (player instanceof ServerPlayer serverPlayer) {
                 serverPlayer.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
                     pEnergy.setRemoteStabilized(true);
-                    boolean hasConnections = checkAnyConnections(level, pos);
+                    pEnergy.setRemoteNoDrain(false);
 
-                    if (hasConnections) {
-                        pEnergy.setRemoteNoDrain(false);
-                        if (pEnergy.isOverloaded()) {
-                            int extracted = pEnergy.extractEnergyPure(40, false);
-                            pEnergy.addExperience(extracted * 0.05f, serverPlayer);
-                            int leftover = extracted - be.receiveTacionEnergy(extracted, false);
-                            if (leftover > 0) MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, leftover));
-                        } else if (pEnergy.getEnergyPercent() > threshold && be.storedEnergy < be.MAX_CAPACITY) {
-                            be.receiveTacionEnergy(pEnergy.extractEnergyPure(50, false), false);
-                        }
-                        processEnergyTransfer(level, pos, be, serverPlayer);
-                    } else {
-                        if (pEnergy.getEnergyPercent() > threshold && level.getGameTime() % 20 == 0) {
-                            int waste = pEnergy.extractEnergyPure(25, false);
-                            MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, waste));
-                        }
+                    if (pEnergy.isOverloaded()) {
+                        int extracted = pEnergy.extractEnergyPure(40, false);
+                        pEnergy.addExperience(extracted * 0.05f, serverPlayer);
+                        int leftover = extracted - be.receiveFromPlayer(extracted, false);
+                        if (leftover > 0) MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, leftover));
+                    } else if (pEnergy.getEnergyPercent() > threshold) {
+                        be.receiveFromPlayer(pEnergy.extractEnergyPure(50, false), false);
                     }
+
+                    processEnergyTransfer(level, pos, be, serverPlayer);
                     if (level.getGameTime() % 10 == 0) pEnergy.sync(serverPlayer);
                 });
             }
@@ -100,96 +111,62 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
 
         for (Direction dir : Direction.values()) {
             if (be.storedEnergy <= 0) break;
-
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor == null) continue;
 
             var tachyonCap = neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite());
             var rfCap = neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite());
 
-            // Використовуємо масиви, щоб Java дозволила змінювати їх всередині .map()
-            final int[] acceptedTX = {0};
-            final int[] acceptedRF = {0};
+            final int[] accTX = {0};
+            final int[] accRF = {0};
 
             if (tachyonCap.isPresent() && rfCap.isPresent()) {
-                int toSplit = Math.min(be.storedEnergy, 100);
+                int toSplit = Math.min(be.storedEnergy, 200);
                 int half = toSplit / 2;
 
-                // 1. Спроба роздати порівну
                 tachyonCap.ifPresent(cap -> {
                     if (!(neighbor instanceof EnergyReservoirBlockEntity) && !(neighbor instanceof WirelessEnergyInterfaceBlockEntity)) {
-                        acceptedTX[0] = cap.receiveTacionEnergy(half, false);
+                        accTX[0] = cap.receiveTacionEnergy(half, false);
                     }
                 });
-
                 rfCap.ifPresent(cap -> {
-                    if (cap.canReceive()) {
-                        acceptedRF[0] = cap.receiveEnergy(half * 10, false) / 10;
-                    }
+                    if (cap.canReceive()) accRF[0] = cap.receiveEnergy(half * 10, false) / 10;
                 });
 
-                // 2. Допалювання залишків (якщо одна система не прийняла свою частку)
-                int remTX = half - acceptedTX[0];
-                int remRF = half - acceptedRF[0];
+                int rTX = half - accTX[0]; int rRF = half - accRF[0];
+                if (rTX > 0) rfCap.ifPresent(cap -> { if (cap.canReceive()) accRF[0] += cap.receiveEnergy(rTX * 10, false) / 10; });
+                if (rRF > 0) tachyonCap.ifPresent(cap -> { if (!(neighbor instanceof EnergyReservoirBlockEntity)) accTX[0] += cap.receiveTacionEnergy(rRF, false); });
 
-                if (remTX > 0) {
-                    rfCap.ifPresent(cap -> {
-                        if (cap.canReceive()) {
-                            acceptedRF[0] += cap.receiveEnergy(remTX * 10, false) / 10;
-                        }
-                    });
-                }
-                if (remRF > 0) {
-                    tachyonCap.ifPresent(cap -> {
-                        if (!(neighbor instanceof EnergyReservoirBlockEntity) && !(neighbor instanceof WirelessEnergyInterfaceBlockEntity)) {
-                            acceptedTX[0] += cap.receiveTacionEnergy(remRF, false);
-                        }
-                    });
-                }
-
-                int totalUsed = acceptedTX[0] + acceptedRF[0];
-                be.extractTacionEnergy(totalUsed, false);
-
-                if (acceptedRF[0] > 0) {
-                    player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e ->
-                            e.addExperience(acceptedRF[0] * 0.15f, player));
-                }
+                int total = accTX[0] + accRF[0];
+                be.extractTacionEnergy(total, false);
+                if (accRF[0] > 0) player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e -> e.addExperience(accRF[0] * 0.15f, player));
 
             } else if (tachyonCap.isPresent()) {
                 tachyonCap.ifPresent(cap -> {
-                    if (!(neighbor instanceof EnergyReservoirBlockEntity) && !(neighbor instanceof WirelessEnergyInterfaceBlockEntity)) {
-                        int accepted = cap.receiveTacionEnergy(Math.min(be.storedEnergy, 100), false);
-                        be.extractTacionEnergy(accepted, false);
+                    if (!(neighbor instanceof EnergyReservoirBlockEntity)) {
+                        be.extractTacionEnergy(cap.receiveTacionEnergy(Math.min(be.storedEnergy, 200), false), false);
                     }
                 });
             } else if (rfCap.isPresent()) {
                 rfCap.ifPresent(cap -> {
                     if (cap.canReceive()) {
-                        int acceptedTotalRF = cap.receiveEnergy(Math.min(be.storedEnergy * 10, 1000), false);
-                        int txUsed = acceptedTotalRF / 10;
-                        be.extractTacionEnergy(txUsed, false);
-                        player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e ->
-                                e.addExperience(txUsed * 0.15f, player));
+                        int used = cap.receiveEnergy(Math.min(be.storedEnergy * 10, 2000), false) / 10;
+                        be.extractTacionEnergy(used, false);
+                        player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e -> e.addExperience(used * 0.15f, player));
                     }
                 });
             }
         }
-    }
-    private static boolean checkAnyConnections(Level level, BlockPos pos) {
-        for (Direction dir : Direction.values()) {
-            BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-            if (neighbor != null && (neighbor.getCapability(ModCapabilities.TACHYON_STORAGE).isPresent() ||
-                    neighbor.getCapability(ForgeCapabilities.ENERGY).isPresent())) return true;
-        }
-        return false;
     }
 
     @Override public int getEnergy() { return storedEnergy; }
     @Override public int getMaxCapacity() { return MAX_CAPACITY; }
     public Component getModeName() { return switch (mode) { case 0 -> Component.translatable("mode.tacionian.safe"); case 1 -> Component.translatable("mode.tacionian.balanced"); case 2 -> Component.translatable("mode.tacionian.performance"); default -> Component.translatable("mode.tacionian.unrestricted"); }; }
     @Override public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) { if (cap == ModCapabilities.TACHYON_STORAGE) return tachyonHolder.cast(); if (cap == ForgeCapabilities.ENERGY) return rfHolder.cast(); return super.getCapability(cap, side); }
-    public void cycleMode(Player player) { this.mode = (this.mode + 1) % 4; if (level != null && !level.isClientSide) player.displayClientMessage(Component.translatable("message.tacionian.mode_switched", getModeName()), true); setChanged(); }
     @Override public void invalidateCaps() { super.invalidateCaps(); tachyonHolder.invalidate(); rfHolder.invalidate(); }
     @Override protected void saveAdditional(CompoundTag nbt) { super.saveAdditional(nbt); nbt.putInt("Mode", mode); nbt.putInt("StoredEnergy", storedEnergy); }
     @Override public void load(CompoundTag nbt) { super.load(nbt); this.mode = nbt.getInt("Mode"); this.storedEnergy = nbt.getInt("StoredEnergy"); }
+    @Override public CompoundTag getUpdateTag() { return saveWithoutMetadata(); }
+    @Nullable @Override public ClientboundBlockEntityDataPacket getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }
+    @Override public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) { if (pkt.getTag() != null) load(pkt.getTag()); }
 }

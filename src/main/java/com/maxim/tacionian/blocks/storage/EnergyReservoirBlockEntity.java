@@ -1,6 +1,7 @@
 package com.maxim.tacionian.blocks.storage;
 
 import com.maxim.tacionian.api.energy.ITachyonStorage;
+import com.maxim.tacionian.blocks.cable.TachyonCableBlockEntity;
 import com.maxim.tacionian.blocks.wireless.WirelessEnergyInterfaceBlockEntity;
 import com.maxim.tacionian.register.ModBlockEntities;
 import com.maxim.tacionian.register.ModCapabilities;
@@ -48,35 +49,24 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, EnergyReservoirBlockEntity be) {
-        if (level.isClientSide) return;
+        if (level.isClientSide || be.energy <= 0) return;
 
+        // Резервуар тепер працює як ДЖЕРЕЛО для мережі та машин
         for (Direction dir : Direction.values()) {
+            if (be.energy <= 0) break;
+
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor == null) continue;
 
-            // 1. ПРИЙОМ: Намагаємося заповнити резервуар із сусідів (крім інших резервуарів)
-            if (be.energy < be.MAX_CAPACITY) {
-                neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                    if (!(neighbor instanceof EnergyReservoirBlockEntity)) {
-                        int toPull = Math.min(be.MAX_CAPACITY - be.energy, 100);
-                        int pulled = cap.extractTacionEnergy(toPull, false);
-                        be.receiveTacionEnergy(pulled, false);
-                    }
-                });
-            }
+            // Не взаємодіємо з інтерфейсом (він тільки дає) і іншими резервуарами (щоб не ганяти енергію по колу)
+            if (neighbor instanceof WirelessEnergyInterfaceBlockEntity || neighbor instanceof EnergyReservoirBlockEntity) continue;
 
-            // 2. РОЗДАЧА: Віддаємо енергію в кабелі/машини
-            // Фільтруємо Інтерфейс та інші Резервуари, щоб не було циклу
-            if (be.energy > 0) {
-                neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                    if (!(neighbor instanceof EnergyReservoirBlockEntity) &&
-                            !(neighbor instanceof WirelessEnergyInterfaceBlockEntity)) {
-                        int toPush = Math.min(be.energy, 100);
-                        int accepted = cap.receiveTacionEnergy(toPush, false);
-                        be.extractTacionEnergy(accepted, false);
-                    }
-                });
-            }
+            neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
+                // Визначаємо, скільки ми можемо віддати (ліміт 500 за тік)
+                int toPush = Math.min(be.energy, 500);
+                int accepted = cap.receiveTacionEnergy(toPush, false);
+                be.extractTacionEnergy(accepted, false);
+            });
         }
     }
 
@@ -89,10 +79,12 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
 
     @Override public int getEnergy() { return energy; }
     @Override public int getMaxCapacity() { return MAX_CAPACITY; }
+
     @Override public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
         if (cap == ModCapabilities.TACHYON_STORAGE) return holder.cast();
         return super.getCapability(cap, side);
     }
+
     @Override public void invalidateCaps() { super.invalidateCaps(); holder.invalidate(); }
     @Override public void load(CompoundTag nbt) { super.load(nbt); this.energy = nbt.getInt("StoredTacion"); }
     @Override protected void saveAdditional(CompoundTag nbt) { super.saveAdditional(nbt); nbt.putInt("StoredTacion", energy); }
