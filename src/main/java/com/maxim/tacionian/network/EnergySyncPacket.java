@@ -16,7 +16,7 @@ public class EnergySyncPacket {
         this.energy = storage.getEnergy();
         this.level = storage.getLevel();
         this.experience = storage.getExperience();
-        this.threshold = storage.getStabilityThreshold();
+        this.threshold = 10;
         this.stabilized = storage.isStabilized();
         this.remoteStabilized = storage.isRemoteStabilized();
         this.remoteNoDrain = storage.isRemoteNoDrain();
