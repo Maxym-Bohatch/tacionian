@@ -99,34 +99,82 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
         if (be.storedEnergy <= 0) return;
 
         for (Direction dir : Direction.values()) {
+            if (be.storedEnergy <= 0) break;
+
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor == null) continue;
 
-            // 1. TX -> TX: Передаємо в кабелі/машини, але ІГНОРУЄМО Резервуари (XP = 0)
-            neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                if (!(neighbor instanceof EnergyReservoirBlockEntity) &&
-                        !(neighbor instanceof WirelessEnergyInterfaceBlockEntity)) {
-                    int accepted = cap.receiveTacionEnergy(Math.min(be.storedEnergy, 50), false);
-                    be.extractTacionEnergy(accepted, false);
-                }
-            });
+            var tachyonCap = neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite());
+            var rfCap = neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite());
 
-            // 2. TX -> RF: Конвертація в RF (XP нараховується)
-            neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(cap -> {
-                if (cap.canReceive()) {
-                    int toTransferRf = Math.min(be.storedEnergy * 10, 500);
-                    int acceptedRf = cap.receiveEnergy(toTransferRf, false);
-                    if (acceptedRf > 0) {
-                        int tacionEquivalent = acceptedRf / 10;
-                        be.extractTacionEnergy(tacionEquivalent, false);
-                        player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e ->
-                                e.addExperience(tacionEquivalent * 0.15f, player));
+            // Використовуємо масиви, щоб Java дозволила змінювати їх всередині .map()
+            final int[] acceptedTX = {0};
+            final int[] acceptedRF = {0};
+
+            if (tachyonCap.isPresent() && rfCap.isPresent()) {
+                int toSplit = Math.min(be.storedEnergy, 100);
+                int half = toSplit / 2;
+
+                // 1. Спроба роздати порівну
+                tachyonCap.ifPresent(cap -> {
+                    if (!(neighbor instanceof EnergyReservoirBlockEntity) && !(neighbor instanceof WirelessEnergyInterfaceBlockEntity)) {
+                        acceptedTX[0] = cap.receiveTacionEnergy(half, false);
                     }
+                });
+
+                rfCap.ifPresent(cap -> {
+                    if (cap.canReceive()) {
+                        acceptedRF[0] = cap.receiveEnergy(half * 10, false) / 10;
+                    }
+                });
+
+                // 2. Допалювання залишків (якщо одна система не прийняла свою частку)
+                int remTX = half - acceptedTX[0];
+                int remRF = half - acceptedRF[0];
+
+                if (remTX > 0) {
+                    rfCap.ifPresent(cap -> {
+                        if (cap.canReceive()) {
+                            acceptedRF[0] += cap.receiveEnergy(remTX * 10, false) / 10;
+                        }
+                    });
                 }
-            });
+                if (remRF > 0) {
+                    tachyonCap.ifPresent(cap -> {
+                        if (!(neighbor instanceof EnergyReservoirBlockEntity) && !(neighbor instanceof WirelessEnergyInterfaceBlockEntity)) {
+                            acceptedTX[0] += cap.receiveTacionEnergy(remRF, false);
+                        }
+                    });
+                }
+
+                int totalUsed = acceptedTX[0] + acceptedRF[0];
+                be.extractTacionEnergy(totalUsed, false);
+
+                if (acceptedRF[0] > 0) {
+                    player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e ->
+                            e.addExperience(acceptedRF[0] * 0.15f, player));
+                }
+
+            } else if (tachyonCap.isPresent()) {
+                tachyonCap.ifPresent(cap -> {
+                    if (!(neighbor instanceof EnergyReservoirBlockEntity) && !(neighbor instanceof WirelessEnergyInterfaceBlockEntity)) {
+                        int accepted = cap.receiveTacionEnergy(Math.min(be.storedEnergy, 100), false);
+                        be.extractTacionEnergy(accepted, false);
+                    }
+                });
+            } else if (rfCap.isPresent()) {
+                rfCap.ifPresent(cap -> {
+                    if (cap.canReceive()) {
+                        int acceptedTotalRF = cap.receiveEnergy(Math.min(be.storedEnergy * 10, 1000), false);
+                        int txUsed = acceptedTotalRF / 10;
+                        be.extractTacionEnergy(txUsed, false);
+                        player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e ->
+                                e.addExperience(txUsed * 0.15f, player));
+                    }
+                });
+            }
         }
     }
-
     private static boolean checkAnyConnections(Level level, BlockPos pos) {
         for (Direction dir : Direction.values()) {
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
@@ -142,6 +190,6 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
     @Override public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) { if (cap == ModCapabilities.TACHYON_STORAGE) return tachyonHolder.cast(); if (cap == ForgeCapabilities.ENERGY) return rfHolder.cast(); return super.getCapability(cap, side); }
     public void cycleMode(Player player) { this.mode = (this.mode + 1) % 4; if (level != null && !level.isClientSide) player.displayClientMessage(Component.translatable("message.tacionian.mode_switched", getModeName()), true); setChanged(); }
     @Override public void invalidateCaps() { super.invalidateCaps(); tachyonHolder.invalidate(); rfHolder.invalidate(); }
-    @Override protected void saveAdditional(CompoundTag nbt) { nbt.putInt("Mode", mode); nbt.putInt("StoredEnergy", storedEnergy); super.saveAdditional(nbt); }
+    @Override protected void saveAdditional(CompoundTag nbt) { super.saveAdditional(nbt); nbt.putInt("Mode", mode); nbt.putInt("StoredEnergy", storedEnergy); }
     @Override public void load(CompoundTag nbt) { super.load(nbt); this.mode = nbt.getInt("Mode"); this.storedEnergy = nbt.getInt("StoredEnergy"); }
 }
