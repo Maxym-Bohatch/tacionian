@@ -1,55 +1,59 @@
 {
   "itemGroup.tacionian_tab": "Tacionian",
-  "item.tacionian.energy_cell": "Energy Cell",
-  "tooltip.tacionian.energy_cell.charge": "Core Charge: %s / %s Tx",
-  "tooltip.tacionian.energy_cell.controls_1": "§6[Shift] §7- Details",
-  "tooltip.tacionian.energy_cell.controls_2": "§6[RMB] §7- Cycle mode",
+  "item.tacionian.energy_cell": "Energy Core",
+  "tooltip.tacionian.energy_cell.charge": "Charge: §b%s / %s Tx",
+  "tooltip.tacionian.energy_cell.controls_1": "§6[Shift] §7— Details",
+  "tooltip.tacionian.energy_cell.controls_2": "§6[RMB] §7— Energy Exchange",
+  "tooltip.tacionian.energy_cell.block_hint": "§eRMB on Reservoir: §7Charge Core\n§eShift+RMB on Reservoir: §7Discharge Core",
 
   "item.tacionian.energy_stabilizer": "Portable Stabilizer",
-  "tooltip.tacionian.energy_stabilizer.desc": "§7Regulates tachyon energy output. Prevents core overload.",
-  "tooltip.tacionian.energy_stabilizer.mode": "Mode: ",
-  "tooltip.tacionian.energy_stabilizer.use_info": "Hold RMB for rapid energy discharge",
+  "tooltip.tacionian.energy_stabilizer.desc": "§7Regulates tachyon flow to prevent your internal core from overloading.",
+  "tooltip.tacionian.energy_stabilizer.mode": "Current Mode: ",
+  "tooltip.tacionian.energy_stabilizer.use_info": "§eHold RMB: §7Rapidly discharge excess energy",
 
   "item.tacionian.basic_charger_item": "Basic Tachyon Charger",
-  "tooltip.tacionian.basic_charger_item.desc": "§7Slowly charges TX and RF items in your inventory.",
+  "tooltip.tacionian.basic_charger_item.desc": "§7Slowly charges TX/RF items in inventory (§e10 Tx/t§7).",
 
   "item.tacionian.safe_charger_item": "Safe Tachyon Charger",
-  "tooltip.tacionian.safe_charger_item.desc": "§7Charges TX/RF items. Auto-off if core is below 15%.",
+  "tooltip.tacionian.safe_charger_item.desc": "§7Charges TX/RF items. §cAuto-shutdown§7 if player energy <15%.",
 
   "block.tacionian.stabilization_plate": "Stabilization Plate",
-  "tooltip.tacionian.stabilization_plate.desc": "§7Passively stabilizes the core. §eCrouch to discharge.",
+  "tooltip.tacionian.stabilization_plate.desc": "§7Passively absorbs instability. §eShift + Stand on plate: §7Fast discharge.",
 
   "block.tacionian.energy_reservoir": "Energy Reservoir",
   "tooltip.tacionian.energy_reservoir.desc": "§7High-capacity storage for Tachyon energy.",
-  "tooltip.tacionian.energy_reservoir.unstable_note": "§dNote: Energy is lost when the block is dismantled.",
+  "tooltip.tacionian.energy_reservoir.unstable_note": "§d⚠ Energy is lost upon dismantling without Silk Touch!",
   "tooltip.tacionian.energy_reservoir.energy": "Stored: §b%s / %s Tx",
 
   "block.tacionian.wireless_energy_interface": "Wireless Interface",
-  "tooltip.tacionian.wireless_interface.desc": "§7Transmits player energy to nearby machines and cables.",
+  "tooltip.tacionian.wireless_interface.desc": "§7Transmits energy from your internal core to the grid.",
   "tooltip.tacionian.wireless_interface.power": "§7Effective Range: §e20 blocks",
 
   "block.tacionian.basic_charger_block": "Charging Block",
-  "tooltip.tacionian.basic_charger_block.desc": "§7Manual charger. Click to convert your energy to RF/TX.",
+  "tooltip.tacionian.basic_charger_block.desc": "§7Converts your energy to grid energy (§e500 Tx/t§7).",
 
   "block.tacionian.safe_charger_block": "Safe Charging Block",
-  "tooltip.tacionian.safe_charger_block.desc": "§7Manual charger. Protects player from total exhaustion.",
+  "tooltip.tacionian.safe_charger_block.desc": "§7Transfers energy to the grid. Stops at §e20%§7 of your charge.",
 
   "block.tacionian.tachyon_cable": "Tachyon Cable",
-  "tooltip.tacionian.tachyon_cable.desc": "§7Distributes Tachyon energy between blocks and machines.",
+  "tooltip.tacionian.tachyon_cable.desc": "§7Transports energy between machines. Throughput: §b1000 Tx/t§7.",
 
   "message.tacionian.level_up": "§b[Tacionian] §fCore level increased to: §6%s",
   "message.tacionian.level_down": "§4§lWARNING! §cCore level downgraded to: %s",
   "message.tacionian.mode_switched": "Interface Mode: %s",
   "message.tacionian.overload_critical": "§cCritical Overload! Core structure is collapsing!",
-  "message.tacionian.low_energy_warning": "§eCore unstable due to low energy!",
+  "message.tacionian.low_energy_warning": "§eCore unstable! Low energy levels!",
 
-  "mode.tacionian.safe": "§aSafe",
-  "mode.tacionian.balanced": "§eBalanced",
-  "mode.tacionian.performance": "§6Performance",
-  "mode.tacionian.unrestricted": "§4Unrestricted",
+  "message.tacionian.charged": "§aCore charged: +%s Tx",
+  "message.tacionian.discharged": "§cCore discharged: -%s Tx",
 
-  "tooltip.tacionian.active": "§aACTIVE",
-  "tooltip.tacionian.inactive": "§cINACTIVE",
+  "mode.tacionian.safe": "§aSafe (Output Limit: 25%)",
+  "mode.tacionian.balanced": "§eBalanced (Output Limit: 50%)",
+  "mode.tacionian.performance": "§6Performance (Output Limit: 85%)",
+  "mode.tacionian.unrestricted": "§4Unrestricted (100% Power)",
+
+  "tooltip.tacionian.active": "§aSTATUS: ACTIVE",
+  "tooltip.tacionian.inactive": "§cSTATUS: INACTIVE",
   "tooltip.tacionian.level": "Core Lvl",
   "death.attack.tacionian.energy": "%1$s's core has imploded due to energy overload"
 }

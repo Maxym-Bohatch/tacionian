@@ -1,5 +1,6 @@
 package com.maxim.tacionian.blocks.cable;
 
+import com.maxim.tacionian.register.ModBlockEntities;
 import com.maxim.tacionian.register.ModCapabilities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -24,10 +25,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Map;
 
 public class TachyonCableBlock extends Block implements EntityBlock {
-    // Властивість, яка відповідає за світіння (є енергія чи ні)
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
-    // Властивості з'єднань
     public static final BooleanProperty NORTH = BlockStateProperties.NORTH;
     public static final BooleanProperty SOUTH = BlockStateProperties.SOUTH;
     public static final BooleanProperty EAST = BlockStateProperties.EAST;
@@ -35,7 +34,6 @@ public class TachyonCableBlock extends Block implements EntityBlock {
     public static final BooleanProperty UP = BlockStateProperties.UP;
     public static final BooleanProperty DOWN = BlockStateProperties.DOWN;
 
-    // Хітбокси (частини кабелю)
     private static final VoxelShape CENTER_SHAPE = Block.box(6, 6, 6, 10, 10, 10);
     private static final Map<Direction, VoxelShape> SHAPES = Map.of(
             Direction.NORTH, Block.box(6, 6, 0, 10, 10, 6),
@@ -47,10 +45,7 @@ public class TachyonCableBlock extends Block implements EntityBlock {
     );
 
     public TachyonCableBlock(Properties props) {
-        // ВАЖЛИВО: Тут ми вмикаємо світіння.
-        // Якщо POWERED = true, рівень світла 8, інакше 0.
         super(props.lightLevel(state -> state.getValue(POWERED) ? 8 : 0));
-
         this.registerDefaultState(this.stateDefinition.any()
                 .setValue(POWERED, false)
                 .setValue(NORTH, false).setValue(SOUTH, false)
@@ -72,19 +67,17 @@ public class TachyonCableBlock extends Block implements EntityBlock {
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        // При розміщенні перевіряємо сусідів
         return makeConnections(context.getLevel(), context.getClickedPos(), false);
     }
 
     @Override
     public BlockState updateShape(BlockState state, Direction dir, BlockState neighborState, LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
-        // При оновленні сусідів зберігаємо поточний стан POWERED
         return makeConnections(level, pos, state.getValue(POWERED));
     }
 
     private BlockState makeConnections(LevelAccessor level, BlockPos pos, boolean isPowered) {
         return this.defaultBlockState()
-                .setValue(POWERED, isPowered) // Зберігаємо стан енергії
+                .setValue(POWERED, isPowered)
                 .setValue(NORTH, canConnectTo(level, pos.north(), Direction.SOUTH))
                 .setValue(SOUTH, canConnectTo(level, pos.south(), Direction.NORTH))
                 .setValue(EAST, canConnectTo(level, pos.east(), Direction.WEST))
@@ -96,7 +89,6 @@ public class TachyonCableBlock extends Block implements EntityBlock {
     private boolean canConnectTo(LevelAccessor level, BlockPos neighborPos, Direction side) {
         BlockEntity be = level.getBlockEntity(neighborPos);
         if (be == null) return false;
-        // Перевіряємо, чи має сусід нашу енергію (ITachyonStorage)
         return be.getCapability(ModCapabilities.TACHYON_STORAGE, side).isPresent();
     }
 
@@ -114,9 +106,10 @@ public class TachyonCableBlock extends Block implements EntityBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        // Тікер працює тільки на сервері
-        return level.isClientSide ? null : (l, p, s, be) -> {
-            if (be instanceof TachyonCableBlockEntity cable) cable.tick();
+        return level.isClientSide ? null : (lvl, pos, st, be) -> {
+            if (be instanceof TachyonCableBlockEntity cable) {
+                TachyonCableBlockEntity.tick(lvl, pos, st, cable);
+            }
         };
     }
 }

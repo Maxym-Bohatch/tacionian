@@ -12,41 +12,71 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Клас керування енергомережею.
- * Об'єднує групу кабелів у єдиний логічний об'єкт.
- */
 public class TachyonNetwork {
     private final Set<TachyonCableBlockEntity> cables = new HashSet<>();
     private int energy = 0;
+    private final int CAPACITY_PER_CABLE = 100; // Буфер мережі
 
-    // БАЛАНС: Кабелі тепер мають мінімальну ємність (тільки як буфер)
-    private final int CAPACITY_PER_CABLE = 10;
+    public void addCable(TachyonCableBlockEntity cable) { cables.add(cable); }
+    public void removeCable(TachyonCableBlockEntity cable) { cables.remove(cable); }
 
-    public void addCable(TachyonCableBlockEntity cable) {
-        cables.add(cable);
-    }
-
-    public void removeCable(TachyonCableBlockEntity cable) {
-        cables.remove(cable);
-        // Якщо мережа не пуста, можна було б викликати rebuild,
-        // але для початкової версії просто залишаємо енергію в "ефірі" мережі
-    }
-
-    /**
-     * Злиття двох мереж в одну (коли гравець з'єднує їх кабелем)
-     */
     public void merge(TachyonNetwork other) {
         if (this == other || other == null) return;
-
         this.energy += other.energy;
         for (TachyonCableBlockEntity cable : other.cables) {
             cable.setNetwork(this);
             this.cables.add(cable);
         }
-        // Обмежуємо енергію новою ємністю, щоб не було дюпів
         this.energy = Math.min(this.energy, getCapacity());
         other.cables.clear();
+    }
+
+    public void tick(Level level) {
+        if (cables.isEmpty()) return;
+
+        // КРОК 1: ЗБІР (Тільки з джерел та повних резервуарів)
+        for (TachyonCableBlockEntity cable : cables) {
+            if (energy >= getCapacity()) break;
+            BlockPos pos = cable.getBlockPos();
+
+            for (Direction dir : Direction.values()) {
+                BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+                if (neighbor == null || neighbor instanceof TachyonCableBlockEntity) continue;
+
+                neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
+                    // Якщо в сусіді енергії більше, ніж у мережі (буфері), витягуємо її
+                    // Це дозволяє енергії текти від "повного" до "порожнього"
+                    if (cap.getEnergy() > 0) {
+                        int toPull = Math.min(getCapacity() - energy, 200);
+                        int extracted = cap.extractTacionEnergy(toPull, false);
+                        energy += extracted;
+                    }
+                });
+            }
+        }
+
+        // КРОК 2: РОЗДАЧА (Тільки тим, у кого енергії менше, ніж у мережі)
+        if (energy > 0) {
+            for (TachyonCableBlockEntity cable : cables) {
+                if (energy <= 0) break;
+                BlockPos pos = cable.getBlockPos();
+
+                for (Direction dir : Direction.values()) {
+                    BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+                    if (neighbor == null || neighbor instanceof TachyonCableBlockEntity) continue;
+
+                    // Не повертаємо енергію в джерело
+                    if (neighbor instanceof WirelessEnergyInterfaceBlockEntity) continue;
+
+                    neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
+                        // Штовхаємо енергію далі
+                        int toPush = Math.min(energy, 200);
+                        int accepted = cap.receiveTacionEnergy(toPush, false);
+                        energy -= accepted;
+                    });
+                }
+            }
+        }
     }
 
     public int receiveEnergy(int amount, boolean simulate) {
@@ -62,37 +92,6 @@ public class TachyonNetwork {
         return toTake;
     }
 
-    /**
-     * Основна логіка розподілу енергії
-     */
-    public void tick(Level level) {
-        if (energy <= 0 || cables.isEmpty()) return;
-
-        // Перебираємо всі кабелі мережі для пошуку споживачів навколо них
-        for (TachyonCableBlockEntity cable : cables) {
-            if (energy <= 0) break;
-            BlockPos pos = cable.getBlockPos();
-
-            for (Direction dir : Direction.values()) {
-                BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-
-                // Пропускаємо інші кабелі та джерела (Wireless Interface)
-                if (neighbor == null || neighbor instanceof TachyonCableBlockEntity
-                        || neighbor instanceof WirelessEnergyInterfaceBlockEntity) continue;
-
-                neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                    // Намагаємося віддати всю наявну енергію в мережі (до 500 за раз на один блок)
-                    int toPush = Math.min(energy, 500);
-                    int accepted = cap.receiveTacionEnergy(toPush, false);
-                    energy -= accepted;
-                });
-            }
-        }
-    }
-
-    /**
-     * Оптимізація: тільки один кабель з усієї мережі запускає логіку тику.
-     */
     public boolean tickMaster(TachyonCableBlockEntity cable, Level level) {
         if (!cables.isEmpty() && cables.iterator().next() == cable) {
             this.tick(level);
@@ -103,9 +102,4 @@ public class TachyonNetwork {
 
     public int getEnergy() { return energy; }
     public int getCapacity() { return cables.size() * CAPACITY_PER_CABLE; }
-    public boolean isEmpty() { return cables.isEmpty(); }
-
-    private void rebuild(Level level) {
-        // Тут буде алгоритм пошуку шляху (BFS), якщо мережа розірвана посередині
-    }
 }

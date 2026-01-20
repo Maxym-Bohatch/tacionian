@@ -6,6 +6,10 @@ import com.maxim.tacionian.register.ModBlockEntities;
 import com.maxim.tacionian.register.ModCapabilities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Connection;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.capabilities.Capability;
@@ -25,39 +29,42 @@ public class TachyonCableBlockEntity extends BlockEntity implements ITachyonStor
         this.network = net;
     }
 
-    public void tick() {
-        if (level == null || level.isClientSide) return;
+    public static void tick(Level level, BlockPos pos, BlockState state, TachyonCableBlockEntity be) {
+        if (level.isClientSide) return;
 
-        // 1. Ініціалізація або пошук мережі
-        if (network == null) {
-            findOrCreateNetwork();
+        if (be.network == null) {
+            be.refreshNetwork();
         }
 
-        // Тільки один кабель з мережі (майстер) оновлює всю мережу
-        // Це економить ресурси процесора в рази!
-        if (network != null && network.tickMaster(this, level)) {
-            // Оновлення світіння для всього сегмента можна додати тут
-        }
+        if (be.network != null) {
+            be.network.tickMaster(be, level);
 
-        // Оновлення візуалу POWERED
-        boolean hasEnergy = network != null && network.getEnergy() > 0;
-        if (getBlockState().getValue(TachyonCableBlock.POWERED) != hasEnergy) {
-            level.setBlock(worldPosition, getBlockState().setValue(TachyonCableBlock.POWERED, hasEnergy), 3);
+            // СИНХРОНІЗАЦІЯ ВІЗУАЛУ
+            boolean hasEnergy = be.network.getEnergy() > 0;
+            if (state.getValue(TachyonCableBlock.POWERED) != hasEnergy) {
+                // Оновлюємо стан на сервері
+                level.setBlock(pos, state.setValue(TachyonCableBlock.POWERED, hasEnergy), 3);
+                // Відправляємо пакет оновлення всім гравцям поруч
+                level.sendBlockUpdated(pos, state, state.setValue(TachyonCableBlock.POWERED, hasEnergy), 3);
+            }
         }
     }
 
-    private void findOrCreateNetwork() {
+    public void refreshNetwork() {
+        if (level == null || level.isClientSide) return;
+
         for (Direction dir : Direction.values()) {
-            BlockEntity be = level.getBlockEntity(worldPosition.relative(dir));
-            if (be instanceof TachyonCableBlockEntity otherCable && otherCable.network != null) {
+            BlockEntity neighbor = level.getBlockEntity(worldPosition.relative(dir));
+            if (neighbor instanceof TachyonCableBlockEntity otherCable && otherCable.network != null) {
                 if (this.network == null) {
                     this.network = otherCable.network;
                     this.network.addCable(this);
-                } else {
+                } else if (this.network != otherCable.network) {
                     this.network.merge(otherCable.network);
                 }
             }
         }
+
         if (this.network == null) {
             this.network = new TachyonNetwork();
             this.network.addCable(this);
@@ -70,7 +77,34 @@ public class TachyonCableBlockEntity extends BlockEntity implements ITachyonStor
         super.setRemoved();
     }
 
-    // Методи ITachyonStorage тепер делегують все мережі
+    // МЕРЕЖЕВА СИНХРОНІЗАЦІЯ (S2C)
+    @Override
+    public CompoundTag getUpdateTag() {
+        CompoundTag tag = super.getUpdateTag();
+        tag.putBoolean("powered", network != null && network.getEnergy() > 0);
+        return tag;
+    }
+
+    @Nullable
+    @Override
+    public ClientboundBlockEntityDataPacket getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    @Override
+    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) {
+        if (pkt.getTag() != null) {
+            boolean isPowered = pkt.getTag().getBoolean("powered");
+            if (level != null) {
+                BlockState state = level.getBlockState(worldPosition);
+                if (state.hasProperty(TachyonCableBlock.POWERED) && state.getValue(TachyonCableBlock.POWERED) != isPowered) {
+                    level.setBlock(worldPosition, state.setValue(TachyonCableBlock.POWERED, isPowered), 3);
+                }
+            }
+        }
+    }
+
+    // ITachyonStorage
     @Override public int receiveTacionEnergy(int amount, boolean simulate) {
         return network != null ? network.receiveEnergy(amount, simulate) : 0;
     }
