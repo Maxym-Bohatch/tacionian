@@ -148,19 +148,37 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
 
     private static void processEnergyTransfer(Level level, BlockPos pos, WirelessEnergyInterfaceBlockEntity be) {
         if (be.storedEnergy <= 0) return;
+
         for (Direction dir : Direction.values()) {
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor == null) continue;
 
-            neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(cap -> {
-                int acceptedRF = cap.receiveEnergy(be.storedEnergy * 10, false);
-                be.extractTacionEnergy(acceptedRF / 10, false);
+            // 1. Обробка TX Кабелів/Машин
+            neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
+                // Передаємо лише якщо в сусіді дійсно є місце
+                int space = cap.getMaxCapacity() - cap.getEnergy();
+                if (space > 0) {
+                    int toTransfer = Math.min(be.storedEnergy, Math.min(space, 20));
+                    int acceptedTX = cap.receiveTacionEnergy(toTransfer, false);
+                    be.extractTacionEnergy(acceptedTX, false);
+                }
             });
 
-            neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                int acceptedTX = cap.receiveTacionEnergy(be.storedEnergy, false);
-                be.extractTacionEnergy(acceptedTX, false);
-            });
+            // 2. Обробка RF Кабелів/Машин
+            if (be.storedEnergy > 0) {
+                neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(cap -> {
+                    if (cap.canReceive()) {
+                        // Перевіряємо скільки реально може прийняти (simulate = true)
+                        int maxRfToGive = Math.min(be.storedEnergy * 10, 200);
+                        int simulatedAccepted = cap.receiveEnergy(maxRfToGive, true);
+
+                        if (simulatedAccepted > 0) {
+                            int acceptedRF = cap.receiveEnergy(simulatedAccepted, false);
+                            be.extractTacionEnergy(acceptedRF / 10, false);
+                        }
+                    }
+                });
+            }
         }
     }
 

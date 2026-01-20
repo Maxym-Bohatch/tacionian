@@ -70,24 +70,27 @@ public class TachyonChargerBlockEntity extends BlockEntity implements ITachyonSt
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, TachyonChargerBlockEntity be) {
-        if (level.isClientSide) return;
+        if (level.isClientSide || be.storedEnergy <= 0) return;
 
-        // Авто-роздача енергії сусідам (якщо в заряднику щось є)
-        if (be.storedEnergy > 0) {
-            for (Direction dir : Direction.values()) {
-                BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-                if (neighbor == null) continue;
+        for (Direction dir : Direction.values()) {
+            BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+            if (neighbor == null) continue;
 
-                // Передача RF
-                neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(cap -> {
-                    int acceptedRF = cap.receiveEnergy(be.storedEnergy * 10, false);
-                    be.extractTacionEnergy(acceptedRF / 10, false);
-                });
+            // Перевіряємо TX (Твій мод)
+            neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(txCap -> {
+                int toTransfer = Math.min(be.storedEnergy, 20); // Ліміт передачі за тік
+                int accepted = txCap.receiveTacionEnergy(toTransfer, false);
+                be.extractTacionEnergy(accepted, false);
+            });
 
-                // Передача TX
-                neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                    int acceptedTX = cap.receiveTacionEnergy(be.storedEnergy, false);
-                    be.extractTacionEnergy(acceptedTX, false);
+            // Перевіряємо RF (Forge) - ВАЖЛИВО: перевіряємо навіть якщо TX спрацював
+            if (be.storedEnergy > 0) {
+                neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(rfCap -> {
+                    if (rfCap.canReceive()) {
+                        int rfToGive = Math.min(be.storedEnergy * 10, 200); // 1 TX = 10 RF
+                        int acceptedRF = rfCap.receiveEnergy(rfToGive, false);
+                        be.extractTacionEnergy(acceptedRF / 10, false);
+                    }
                 });
             }
         }
