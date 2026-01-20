@@ -37,37 +37,55 @@ public class EnergyReservoirBlock extends Block implements EntityBlock {
 
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
+        // Логіка працює тільки на сервері (щоб дані були точними)
         if (level.isClientSide) return InteractionResult.SUCCESS;
 
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof EnergyReservoirBlockEntity reservoir) {
+
+            // 1. Якщо рука порожня і Shift не натиснуто -> ТІЛЬКИ ІНФОРМАЦІЯ
+            if (player.getItemInHand(hand).isEmpty() && !player.isShiftKeyDown()) {
+                player.displayClientMessage(Component.translatable("tooltip.tacionian.energy_reservoir.energy",
+                        reservoir.getEnergy(), reservoir.getMaxCapacity()).withStyle(ChatFormatting.YELLOW), true);
+                return InteractionResult.SUCCESS; // Виходимо, енергію не чіпаємо
+            }
+
+            // 2. Логіка передачі енергії (якщо в руці щось є або натиснуто Shift)
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
                 int amount = 500;
+                boolean actionHappened = false;
 
                 if (player.isShiftKeyDown()) {
                     // Забираємо з блоку -> гравцеві
                     int extractedFromBlock = reservoir.extractTacionEnergy(amount, false);
                     if (extractedFromBlock > 0) {
                         pEnergy.receiveEnergy(extractedFromBlock, false);
+                        player.displayClientMessage(Component.literal("§a[<] Витягнуто: " + extractedFromBlock + " Tx"), true);
+                        actionHappened = true;
                     }
                 } else {
-                    // Забираємо у гравця -> в блок
+                    // Забираємо у гравця -> в блок (Тільки якщо в руці предмет, наприклад, "провідник")
                     int takenFromPlayer = pEnergy.extractEnergyPure(amount, false);
                     if (takenFromPlayer > 0) {
                         reservoir.receiveTacionEnergy(takenFromPlayer, false);
+                        player.displayClientMessage(Component.literal("§c[>] Залито: " + takenFromPlayer + " Tx"), true);
+                        actionHappened = true;
                     }
                 }
 
-                // Завдяки синхронізації в BlockEntity, тут завжди будуть свіжі дані
-                player.displayClientMessage(Component.translatable("tooltip.tacionian.energy_reservoir.energy",
-                        reservoir.getEnergy(), reservoir.getMaxCapacity()).withStyle(ChatFormatting.AQUA), true);
-
-                pEnergy.sync((ServerPlayer) player);
+                if (actionHappened) {
+                    pEnergy.sync((ServerPlayer) player);
+                } else {
+                    // Якщо нічого не сталося (блок повний або гравець пустий) - показуємо статус
+                    player.displayClientMessage(Component.translatable("tooltip.tacionian.energy_reservoir.energy",
+                            reservoir.getEnergy(), reservoir.getMaxCapacity()).withStyle(ChatFormatting.RED), true);
+                }
             });
         }
         return InteractionResult.SUCCESS;
     }
 
+    // ... (Методи onRemove та appendHoverText залишаються без змін) ...
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
@@ -84,13 +102,10 @@ public class EnergyReservoirBlock extends Block implements EntityBlock {
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable BlockGetter level, List<Component> tooltip, TooltipFlag flag) {
-        // Читаємо енергію з предмета в інвентарі
         CompoundTag nbt = stack.getTagElement("BlockEntityTag");
         int energy = (nbt != null) ? nbt.getInt("StoredTacion") : 0;
 
         tooltip.add(Component.translatable("tooltip.tacionian.energy_reservoir.energy", energy, 25000).withStyle(ChatFormatting.AQUA));
         tooltip.add(Component.translatable("tooltip.tacionian.energy_reservoir.desc").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("block.tacionian.energy_reservoir.warning").withStyle(ChatFormatting.RED));
-        tooltip.add(Component.translatable("block.tacionian.energy_reservoir.controls").withStyle(ChatFormatting.YELLOW));
     }
 }

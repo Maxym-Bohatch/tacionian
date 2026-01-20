@@ -6,6 +6,7 @@ import com.maxim.tacionian.register.ModCapabilities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -30,7 +31,7 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         int toAdd = Math.min(amount, space);
         if (!simulate && toAdd > 0) {
             energy += toAdd;
-            updateBlock();
+            updateBlock(); // Синхронізація при зміні
         }
         return toAdd;
     }
@@ -40,11 +41,12 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         int toExtract = Math.min(amount, energy);
         if (!simulate && toExtract > 0) {
             energy -= toExtract;
-            updateBlock();
+            updateBlock(); // Синхронізація при зміні
         }
         return toExtract;
     }
 
+    // Викликає оновлення блоку для клієнтів
     private void updateBlock() {
         setChanged();
         if (level != null && !level.isClientSide) {
@@ -79,7 +81,8 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         nbt.putInt("StoredTacion", energy);
     }
 
-    // Синхронізація для клієнта
+    // === СИНХРОНІЗАЦІЯ ДАНИХ (ВАЖЛИВО) ===
+
     @Override
     public CompoundTag getUpdateTag() {
         CompoundTag tag = super.getUpdateTag();
@@ -87,14 +90,18 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         return tag;
     }
 
-    @Override
-    public void handleUpdateTag(CompoundTag tag) {
-        load(tag);
-    }
-
     @Nullable
     @Override
     public ClientboundBlockEntityDataPacket getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    // Ось цей метод приймає пакет на клієнті і оновлює дані!
+    @Override
+    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) {
+        CompoundTag tag = pkt.getTag();
+        if (tag != null) {
+            this.load(tag);
+        }
     }
 }

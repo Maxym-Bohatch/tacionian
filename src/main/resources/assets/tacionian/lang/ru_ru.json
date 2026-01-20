@@ -11,16 +11,16 @@
   "tooltip.tacionian.energy_stabilizer.use_info": "Удерживайте ПКМ для быстрого сброса энергии",
 
   "item.tacionian.basic_charger_item": "Базовый тахионный зарядник",
-  "tooltip.tacionian.basic_charger_item.desc": "§7Медленно заряжает предметы в вашем инвентаре.",
+  "tooltip.tacionian.basic_charger_item.desc": "§7Медленно заряжает TX и RF предметы в инвентаре.",
 
   "item.tacionian.safe_charger_item": "Безопасный тахионный зарядник",
-  "tooltip.tacionian.safe_charger_item.desc": "§7Умный зарядник. Отключается, если энергия ниже 15%.",
+  "tooltip.tacionian.safe_charger_item.desc": "§7Заряжает TX/RF. Отключается, если энергия ядра ниже 15%.",
 
   "block.tacionian.stabilization_plate": "Стабилизирующая плита",
   "tooltip.tacionian.stabilization_plate.desc": "§7Пассивно стабилизирует ядро. §eПрисядьте, чтобы разрядить.",
 
   "block.tacionian.energy_reservoir": "Энергетический резервуар",
-  "block.tacionian.energy_reservoir.controls": "§6ПКМ §7- сохранить, §6Shift+ПКМ §7- забрать энергию",
+  "block.tacionian.energy_reservoir.controls": "§6ПКМ §7- инфо/заливка, §6Shift+ПКМ §7- забрать",
   "tooltip.tacionian.energy_reservoir.desc": "§7Емкое хранилище для тахионной энергии.",
   "block.tacionian.energy_reservoir.warning": "§cВнимание: Энергия испаряется в атмосферу при разрушении!",
   "tooltip.tacionian.energy_reservoir.energy": "Сохранено: §b%s / %s Tx",
@@ -30,10 +30,10 @@
   "tooltip.tacionian.wireless_interface.power": "§7Эффективный радиус: §e20 блоков",
 
   "block.tacionian.basic_charger_block": "Зарядный блок",
-  "tooltip.tacionian.basic_charger_block.desc": "§7Стационарная станция. Питает FE-совместимые машины.",
+  "tooltip.tacionian.basic_charger_block.desc": "§7Ручной зарядник. Нажмите ПКМ, чтобы отдать энергию в сеть.",
 
   "block.tacionian.safe_charger_block": "Безопасный зарядный блок",
-  "tooltip.tacionian.safe_charger_block.desc": "§7Умная зарядная станция. Защищает игрока от истощения.",
+  "tooltip.tacionian.safe_charger_block.desc": "§7Безопасная зарядка. Не дает опустошить ядро игрока полностью.",
 
   "block.tacionian.tachyon_cable": "Тахионный кабель",
   "tooltip.tacionian.tachyon_cable.desc": "§7Распределяет тахионную энергию между блоками и механизмами.",

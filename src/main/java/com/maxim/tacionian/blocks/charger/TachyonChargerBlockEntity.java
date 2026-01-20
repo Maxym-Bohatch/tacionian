@@ -1,26 +1,20 @@
 package com.maxim.tacionian.blocks.charger;
 
 import com.maxim.tacionian.api.energy.ITachyonStorage;
-import com.maxim.tacionian.energy.PlayerEnergyProvider;
 import com.maxim.tacionian.register.ModBlockEntities;
 import com.maxim.tacionian.register.ModCapabilities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.energy.IEnergyStorage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
 
 public class TachyonChargerBlockEntity extends BlockEntity implements ITachyonStorage {
     private int storedEnergy = 0;
@@ -75,47 +69,22 @@ public class TachyonChargerBlockEntity extends BlockEntity implements ITachyonSt
         return super.getCapability(cap, side);
     }
 
-    @Override
-    public void invalidateCaps() {
-        super.invalidateCaps();
-        tachyonHolder.invalidate();
-        rfHolder.invalidate();
-    }
-
     public static void tick(Level level, BlockPos pos, BlockState state, TachyonChargerBlockEntity be) {
         if (level.isClientSide) return;
 
-        // 1. Пасивне витягування енергії (Тільки якщо буфер < 80%)
-        if (be.storedEnergy < (be.MAX_CAPACITY * 0.8)) {
-            AABB area = new AABB(pos).inflate(4);
-            List<Player> players = level.getEntitiesOfClass(Player.class, area);
-            for (Player player : players) {
-                if (player instanceof ServerPlayer serverPlayer) {
-                    serverPlayer.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
-                        // Перевірка наявності мінімального запасу у гравця
-                        if (pEnergy.getEnergy() > 100) {
-                            int taken = pEnergy.extractEnergyPure(20, false);
-                            be.receiveTacionEnergy(taken, false);
-                            pEnergy.sync(serverPlayer);
-                        }
-                    });
-                }
-            }
-        }
-
-        // 2. Авто-роздача (Push-механіка)
+        // Авто-роздача енергії сусідам (якщо в заряднику щось є)
         if (be.storedEnergy > 0) {
             for (Direction dir : Direction.values()) {
                 BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
                 if (neighbor == null) continue;
 
-                // Роздача RF
+                // Передача RF
                 neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(cap -> {
                     int acceptedRF = cap.receiveEnergy(be.storedEnergy * 10, false);
                     be.extractTacionEnergy(acceptedRF / 10, false);
                 });
 
-                // Роздача TX
+                // Передача TX
                 neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
                     int acceptedTX = cap.receiveTacionEnergy(be.storedEnergy, false);
                     be.extractTacionEnergy(acceptedTX, false);

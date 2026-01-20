@@ -1,6 +1,7 @@
 package com.maxim.tacionian.items.charger;
 
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
+import com.maxim.tacionian.register.ModCapabilities;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -38,38 +39,55 @@ public class SafeChargerItem extends Item {
         if (level.isClientSide || !(entity instanceof ServerPlayer serverPlayer)) return;
         if (!stack.getOrCreateTag().getBoolean("Active")) return;
 
-        // Обробка кожні 5 тіків для балансу продуктивності та досвіду
         if (level.getGameTime() % 5 == 0) {
             serverPlayer.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
-                // Безпечний поріг: 15% енергії залишається в ядрі
                 int minEnergy = (int) (pEnergy.getMaxEnergy() * 0.15f);
-                int availableTx = pEnergy.getEnergy() - minEnergy;
-                if (availableTx <= 0) return;
+                // Використовуємо масив, щоб Java дозволила змінювати значення всередині лямбда-виразів
+                final int[] availableTx = { pEnergy.getEnergy() - minEnergy };
+
+                if (availableTx[0] <= 0) return;
 
                 boolean changed = false;
                 for (ItemStack target : serverPlayer.getInventory().items) {
                     if (target.isEmpty() || target == stack) continue;
 
-                    var capOpt = target.getCapability(ForgeCapabilities.ENERGY);
-                    if (capOpt.isPresent()) {
-                        final boolean[] success = {false};
-                        capOpt.ifPresent(cap -> {
-                            if (cap.canReceive()) {
-                                int maxRfToGive = Math.min(availableTx * 10, 1000);
-                                int acceptedRf = cap.receiveEnergy(maxRfToGive, true);
+                    // 1. Пріоритет: Tachyon (Твій мод)
+                    var txCap = target.getCapability(ModCapabilities.TACHYON_STORAGE);
+                    if (txCap.isPresent()) {
+                        int taken = txCap.map(cap -> {
+                            int needed = cap.getMaxCapacity() - cap.getEnergy();
+                            int toGive = Math.min(availableTx[0], Math.min(needed, 50));
+                            int extracted = pEnergy.extractEnergyWithExp(toGive, false, serverPlayer);
+                            return cap.receiveTacionEnergy(extracted, false);
+                        }).orElse(0);
 
-                                if (acceptedRf > 0) {
-                                    int txToExtract = (acceptedRf + 9) / 10;
-                                    int extractedTx = pEnergy.extractEnergyWithExp(txToExtract, false, serverPlayer);
+                        if (taken > 0) {
+                            changed = true;
+                            availableTx[0] -= taken;
+                            if (availableTx[0] <= 0) break;
+                            continue;
+                        }
+                    }
 
-                                    if (extractedTx > 0) {
-                                        cap.receiveEnergy(extractedTx * 10, false);
-                                        success[0] = true;
-                                    }
-                                }
+                    // 2. RF Енергія (Інші моди)
+                    var rfCap = target.getCapability(ForgeCapabilities.ENERGY);
+                    if (rfCap.isPresent()) {
+                        int taken = rfCap.map(cap -> {
+                            if (!cap.canReceive()) return 0;
+                            int neededRF = Math.min(cap.receiveEnergy(500, true), availableTx[0] * 10);
+                            if (neededRF > 0) {
+                                int txToTake = (neededRF + 9) / 10;
+                                int extracted = pEnergy.extractEnergyWithExp(txToTake, false, serverPlayer);
+                                return cap.receiveEnergy(extracted * 10, false);
                             }
-                        });
-                        if (success[0]) changed = true;
+                            return 0;
+                        }).orElse(0);
+
+                        if (taken > 0) {
+                            changed = true;
+                            availableTx[0] -= (taken / 10);
+                            if (availableTx[0] <= 0) break;
+                        }
                     }
                 }
 
