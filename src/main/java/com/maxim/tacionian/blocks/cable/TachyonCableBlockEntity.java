@@ -6,9 +6,6 @@ import com.maxim.tacionian.register.ModBlockEntities;
 import com.maxim.tacionian.register.ModCapabilities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.Connection;
-import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -23,6 +20,11 @@ public class TachyonCableBlockEntity extends BlockEntity implements ITachyonStor
 
     public TachyonCableBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.CABLE_BE.get(), pos, state);
+    }
+
+    // Додаємо цей метод, щоб виправити помилку "cannot find symbol" у TachyonNetwork
+    public void setNetwork(TachyonNetwork network) {
+        this.network = network;
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, TachyonCableBlockEntity be) {
@@ -40,7 +42,7 @@ public class TachyonCableBlockEntity extends BlockEntity implements ITachyonStor
             if (!hasEnergy) {
                 for (Direction dir : Direction.values()) {
                     BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-                    // Перевіряємо капабіліті тахіонів у сусіда
+                    // Перевіряємо капабіліті тахіонів у сусіда (Резервуара тощо)
                     if (neighbor != null && !(neighbor instanceof TachyonCableBlockEntity)) {
                         var cap = neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite());
                         if (cap.isPresent() && cap.map(ITachyonStorage::getEnergy).orElse(0) > 0) {
@@ -82,12 +84,28 @@ public class TachyonCableBlockEntity extends BlockEntity implements ITachyonStor
         super.setRemoved();
     }
 
-    @Override public int receiveTacionEnergy(int amount, boolean simulate) { return network != null ? network.receiveEnergy(amount, simulate) : 0; }
-    @Override public int extractTacionEnergy(int amount, boolean simulate) { return network != null ? network.extractEnergy(amount, simulate) : 0; }
-    @Override public int getEnergy() { return network != null ? network.getEnergy() : 0; }
-    @Override public int getMaxCapacity() { return network != null ? network.getCapacity() : 0; }
+    @Override
+    public int receiveTacionEnergy(int amount, boolean simulate) {
+        return network != null ? network.receiveEnergy(amount, simulate) : 0;
+    }
 
-    @Override public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
+    @Override
+    public int extractTacionEnergy(int amount, boolean simulate) {
+        return network != null ? network.extractEnergy(amount, simulate) : 0;
+    }
+
+    @Override
+    public int getEnergy() {
+        return network != null ? network.getEnergy() : 0;
+    }
+
+    @Override
+    public int getMaxCapacity() {
+        return network != null ? network.getCapacity() : 0;
+    }
+
+    @Override
+    public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
         if (cap == ModCapabilities.TACHYON_STORAGE) return holder.cast();
         return super.getCapability(cap, side);
     }
