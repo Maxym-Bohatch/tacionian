@@ -17,14 +17,11 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
     private int energy = 0;
     private final int MAX_CAPACITY = 100000;
 
-    // Холдер для Forge Capability
     private final LazyOptional<ITachyonStorage> holder = LazyOptional.of(() -> this);
 
     public EnergyReservoirBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.RESERVOIR_BE.get(), pos, state);
     }
-
-    // --- Реалізація ITachyonStorage (Назви тепер ТОЧНО як в інтерфейсі) ---
 
     @Override
     public int receiveTacionEnergy(int amount, boolean simulate) {
@@ -47,17 +44,8 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         return toExtract;
     }
 
-    @Override
-    public int getEnergy() {
-        return energy;
-    }
-
-    @Override
-    public int getMaxCapacity() {
-        return MAX_CAPACITY;
-    }
-
-    // --- Capability System ---
+    @Override public int getEnergy() { return energy; }
+    @Override public int getMaxCapacity() { return MAX_CAPACITY; }
 
     @Override
     public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
@@ -72,8 +60,6 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         super.invalidateCaps();
         holder.invalidate();
     }
-
-    // --- Збереження даних (NBT) ---
 
     @Override
     public void load(CompoundTag nbt) {

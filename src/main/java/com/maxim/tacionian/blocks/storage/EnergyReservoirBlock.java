@@ -1,5 +1,6 @@
 package com.maxim.tacionian.blocks.storage;
 
+import com.maxim.tacionian.api.events.TachyonWasteEvent;
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -17,6 +18,7 @@ import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraftforge.common.MinecraftForge;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -39,37 +41,49 @@ public class EnergyReservoirBlock extends Block implements EntityBlock {
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof EnergyReservoirBlockEntity reservoir) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
-                int amount = 500; // Кількість енергії за один клік
+                int amount = 500;
 
                 if (player.isShiftKeyDown()) {
-                    // ЗАБРАТИ з блоку -> ВІДДАТИ гравцю
                     int extractedFromBlock = reservoir.extractTacionEnergy(amount, false);
                     if (extractedFromBlock > 0) {
                         pEnergy.receiveEnergy(extractedFromBlock, false);
                     }
                 } else {
-                    // ЗАБРАТИ у гравця -> ВІДДАТИ в блок
-                    // Використовуємо extractEnergyPure, бо це просто зберігання, а не "спалювання" для досвіду
                     int takenFromPlayer = pEnergy.extractEnergyPure(amount, false);
                     if (takenFromPlayer > 0) {
                         reservoir.receiveTacionEnergy(takenFromPlayer, false);
                     }
                 }
 
-                // Виводимо стан резервуара в Actionbar (над інвентарем)
                 player.displayClientMessage(Component.translatable("tooltip.tacionian.energy_reservoir.energy",
                         reservoir.getEnergy(), reservoir.getMaxCapacity()).withStyle(ChatFormatting.AQUA), true);
 
                 pEnergy.sync((ServerPlayer) player);
             });
         }
-
         return InteractionResult.SUCCESS;
+    }
+
+    // ЛОГІКА ДЛЯ АДДОНУ: Викид енергії при руйнуванні
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock())) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof EnergyReservoirBlockEntity reservoir) {
+                int leftover = reservoir.getEnergy();
+                if (leftover > 0 && !level.isClientSide) {
+                    // Відправляємо івент, який "почує" аддон Skies
+                    MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, leftover));
+                }
+            }
+            super.onRemove(state, level, pos, newState, isMoving);
+        }
     }
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable BlockGetter level, List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.translatable("block.tacionian.energy_reservoir.desc").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable("tooltip.tacionian.energy_reservoir.desc").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable("block.tacionian.energy_reservoir.warning").withStyle(ChatFormatting.RED));
         tooltip.add(Component.translatable("block.tacionian.energy_reservoir.controls").withStyle(ChatFormatting.YELLOW));
     }
 }
