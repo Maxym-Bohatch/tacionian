@@ -32,7 +32,7 @@ public class TachyonChargerBlock extends BaseEntityBlock {
     @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
 
     @Nullable @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new TachyonChargerBlockEntity(pos, state);
+        return isSafe ? new TachyonSafeChargerBlockEntity(pos, state) : new TachyonChargerBlockEntity(pos, state);
     }
 
     @Nullable @Override public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
@@ -45,19 +45,34 @@ public class TachyonChargerBlock extends BaseEntityBlock {
 
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof TachyonChargerBlockEntity charger) {
+
+            // 1. Логіка вилучення енергії назад (Shift + ПКМ)
+            if (player.isShiftKeyDown()) {
+                charger.handlePlayerExtraction(serverPlayer);
+                return InteractionResult.SUCCESS;
+            }
+
+            // 2. Логіка зарядки блоку від гравця
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
+                // Перевіряємо ліміт безпеки для Safe-версії (15%)
                 int minLimit = isSafe ? (int)(pEnergy.getMaxEnergy() * 0.15f) : 0;
 
                 if (pEnergy.getEnergy() > minLimit) {
-                    int acceptedTx = charger.receiveTacionEnergy(50, false);
+                    // Блок намагається прийняти енергію
+                    int amountToGive = 100;
+                    int acceptedTx = charger.receiveTacionEnergy(amountToGive, false);
+
                     if (acceptedTx > 0) {
+                        // Забираємо енергію у гравця і даємо досвід (використовує множник 0.5 з конфігу)
                         pEnergy.extractEnergyWithExp(acceptedTx, false, serverPlayer);
                         pEnergy.sync(serverPlayer);
-                        // ВЛАСНИЙ ЗВУК: Процес зарядки
+
+                        // Звуковий фідбек
                         level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.7f, 1.4f);
                     }
                 } else {
-                    // Використовуємо системний звук помилки, бо це негативна подія
+                    // Повідомлення про спрацювання захисту
+                    player.displayClientMessage(Component.translatable("message.tacionian.safety_limit").withStyle(ChatFormatting.RED), true);
                     level.playSound(null, pos, net.minecraft.sounds.SoundEvents.NOTE_BLOCK_BASS.get(), SoundSource.BLOCKS, 1.0f, 0.5f);
                 }
             });

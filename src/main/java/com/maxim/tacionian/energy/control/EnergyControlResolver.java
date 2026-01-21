@@ -12,32 +12,31 @@ import net.minecraft.world.level.block.state.BlockState;
 public class EnergyControlResolver {
 
     public static void resolve(ServerPlayer player, PlayerEnergy energy) {
-        // 1. Пошук стабілізатора в інвентарі
+        // 1. Стабілізатор в інвентарі (активує внутрішній таймер)
         for (ItemStack stack : player.getInventory().items) {
-            if (stack.getItem() instanceof EnergyStabilizerItem stabilizer) {
-                energy.setStabilized(true); // Заводить таймер
+            if (stack.getItem() instanceof EnergyStabilizerItem) {
+                energy.setStabilized(true);
                 int mode = stack.getOrCreateTag().getInt("Mode");
                 int threshold = (mode == 0) ? 75 : (mode == 1) ? 40 : (mode == 2) ? 15 : 0;
 
                 if (energy.getEnergyPercent() > threshold) {
-                    energy.setRemoteNoDrain(true); // Заводить таймер
+                    energy.setRemoteNoDrain(true);
                 }
                 break;
             }
         }
 
-        // 2. Плита під ногами
+        // 2. Стабілізаційна плита під ногами
         BlockPos pos = player.blockPosition().below();
         BlockState state = player.level().getBlockState(pos);
 
-        // У методі resolve, всередині умови плити:
         if (state.is(ModBlocks.STABILIZATION_PLATE.get())) {
             energy.setRemoteStabilized(true);
+            // Присідання на плиті дозволяє скидати зайву енергію
             if (player.isCrouching() && energy.getEnergyPercent() > 5) {
                 int extracted = energy.extractEnergyPure(40, false);
 
                 if (extracted > 0) {
-                    // ВИКЛИКАЄМО ІВЕНТ
                     net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
                             new com.maxim.tacionian.api.events.TachyonWasteEvent(player.level(), pos, extracted)
                     );
@@ -50,7 +49,7 @@ public class EnergyControlResolver {
             }
         }
 
-        // 3. Загальний захист від перевантаження (тільки якщо активний будь-який таймер стабілізації)
+        // 3. Загальний захист: якщо стабілізація активна, енергія не перевищує 95% (безпечний поріг)
         if ((energy.isStabilized() || energy.isRemoteStabilized()) && energy.isOverloaded()) {
             energy.setEnergy((int)(energy.getMaxEnergy() * 0.95f));
         }

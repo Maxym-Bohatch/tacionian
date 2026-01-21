@@ -1,10 +1,10 @@
 package com.maxim.tacionian.client.hud;
 
+import com.maxim.tacionian.api.effects.ITachyonEffect;
 import com.maxim.tacionian.energy.ClientPlayerEnergy;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 public class EnergyHudOverlay {
@@ -13,93 +13,59 @@ public class EnergyHudOverlay {
         if (mc.level == null || mc.player == null || mc.player.isSpectator()) return;
         if (!ClientPlayerEnergy.hasData()) return;
 
-        // --- КООРДИНАТИ ТА РОЗМІРИ ---
         int x = 15;
         int y = 15;
-        int barWidth = 120; // Трохи ширше для кращого вигляду
+        int barWidth = 120;
         int barHeight = 8;
         float gameTime = mc.level.getGameTime() + partialTick;
 
-        // --- ЛОГІКА СТАНІВ ТА КОЛЬОРІВ ---
-        int baseColor;
-        boolean isDanger = false;
-        boolean isStable = false;
-        boolean isRemote = ClientPlayerEnergy.isRemoteStabilized();
+        // ВИКЛИКАЄМО НАШ НОВИЙ ХЕЛПЕР
+        int color = EnergyColorHelper.getColor();
 
+        // Додаткова пульсація для тривоги
         if (ClientPlayerEnergy.isOverloaded() || ClientPlayerEnergy.isCriticalLow()) {
-            baseColor = 0xFFFF4444; // Червоний (Пріоритет 1: Небезпека)
-            isDanger = true;
-        } else if (isRemote) {
-            baseColor = 0xFFAA44FF; // Фіолетовий (Пріоритет 2: Бездротова мережа)
-            isStable = true;
-        } else if (ClientPlayerEnergy.isStabilized()) {
-            baseColor = 0xFF44FF44; // Зелений (Пріоритет 3: Портативний стабілізатор)
-            isStable = true;
-        } else {
-            baseColor = 0xFF00A0FF; // Блакитний (Стандарт)
+            float pulse = (float) (Math.sin(gameTime * 0.5f) + 1.0f) * 0.5f * 0.4f + 0.6f;
+            color = multiplyColor(color, pulse);
         }
 
-        // Анімація кольору
-        int finalColor = baseColor;
-        if (isDanger) {
-            float pulse = (float) (Math.sin(gameTime * 0.4f) + 1.0f) * 0.5f * 0.3f + 0.7f;
-            finalColor = multiplyColor(baseColor, pulse);
-        } else if (isStable) {
-            float breath = (float) (Math.sin(gameTime * 0.1f) + 1.0f) * 0.5f * 0.2f + 0.8f;
-            finalColor = multiplyColor(baseColor, breath);
-        }
+        // Рендер тексту
+        graphics.drawString(mc.font, "LVL " + ClientPlayerEnergy.getLevel(), x, y, 0xFFFFFF, true);
+        graphics.drawString(mc.font, ClientPlayerEnergy.getEnergy() + " Tx", x + barWidth - 30, y, 0xBBBBBB, true);
 
-        // --- РЕНДЕР ТЕКСТУ В СТОВПЧИК ---
-        // Рядок 1: Рівень ядра
-        Component lvlComp = Component.translatable("tooltip.tacionian.level");
-        String levelText = lvlComp.getString() + ": " + ClientPlayerEnergy.getLevel();
-        graphics.drawString(mc.font, levelText, x, y, isDanger ? 0xFFFFAA00 : 0xFFFFFF, true);
-
-        // Рядок 2: Поточна / Максимальна енергія
-        // Використовуємо getMaxEnergy() з логіки, щоб показати ліміт
-        String energyValues = ClientPlayerEnergy.getEnergy() + " / " + ClientPlayerEnergy.getMaxEnergy() + " Tx";
-        graphics.drawString(mc.font, energyValues, x, y + 10, 0xAAAAAA, true);
-
-        // --- РЕНДЕР БАРІВ ---
-        int barY = y + 22; // Зміщуємо нижче, бо тепер два рядки тексту
-        float ratio = Math.min(ClientPlayerEnergy.getRatio(), 1.0f);
-        int filledWidth = (int) (barWidth * ratio);
-
-        // Рамка та фон
+        // Бар енергії
+        int barY = y + 12;
+        float ratio = ClientPlayerEnergy.getRatio();
         graphics.fill(x - 1, barY - 1, x + barWidth + 1, barY + barHeight + 1, 0xFF000000);
-        graphics.fill(x, barY, x + barWidth, barY + barHeight, 0xFF111111);
+        graphics.fill(x, barY, x + barWidth, barY + barHeight, 0xFF151515);
+        graphics.fill(x, barY, x + (int)(barWidth * Math.min(ratio, 1.0f)), barY + barHeight, color);
 
-        if (filledWidth > 0) {
-            graphics.fill(x, barY, x + filledWidth, barY + barHeight, finalColor);
+        // Ефект сканування
+        if (ClientPlayerEnergy.isStabilized() || ClientPlayerEnergy.isRemoteStabilized()) {
+            int scanX = x + (int)((gameTime * 4) % barWidth);
+            graphics.fill(scanX, barY, Math.min(scanX + 4, x + barWidth), barY + barHeight, 0x44FFFFFF);
+        }
 
-            // Статичний відблиск зверху
-            graphics.fill(x, barY, x + filledWidth, barY + 2, 0x33FFFFFF);
-
-            // Анімований "сканер" для стабільних станів
-            if (isStable) {
-                float scanPos = (gameTime % 40) / 40.0f;
-                int scanX = x + (int)(filledWidth * scanPos);
-                if (scanX < x + filledWidth) {
-                    graphics.fill(scanX, barY, Math.min(scanX + 3, x + filledWidth), barY + barHeight, 0x44FFFFFF);
-                }
+        // --- МАЛЮВАННЯ ІКОНОК ЕФЕКТІВ ---
+        int iconX = x;
+        int iconY = barY + barHeight + 4;
+        for (MobEffectInstance effect : mc.player.getActiveEffects()) {
+            if (effect.getEffect() instanceof ITachyonEffect tachyonEffect && tachyonEffect.shouldShowInHud()) {
+                graphics.fill(iconX, iconY, iconX + 6, iconY + 6, 0xFF000000);
+                graphics.fill(iconX + 1, iconY + 1, iconX + 5, iconY + 5, tachyonEffect.getIconColor());
+                iconX += 8;
             }
         }
 
-        // Рядок 3: Бар досвіду (Золотий)
-        int xpY = barY + barHeight + 3;
-        float expRatio = Math.max(0, Math.min((float) ClientPlayerEnergy.getExperience() / ClientPlayerEnergy.getRequiredExp(), 1.0f));
-        int xpFilledWidth = (int) (barWidth * expRatio);
-
-        if (xpFilledWidth > 0) {
-            graphics.fill(x, xpY, x + barWidth, xpY + 1, 0xFF000000);
-            graphics.fill(x, xpY, x + xpFilledWidth, xpY + 1, 0xFFFFD700);
-        }
+        // Рядок досвіду
+        int xpY = iconY + 8;
+        float xpRatio = (float) ClientPlayerEnergy.getExperience() / ClientPlayerEnergy.getRequiredExp();
+        graphics.fill(x, xpY, x + (int)(barWidth * Math.min(xpRatio, 1.0f)), xpY + 1, 0xFFFFD700);
     };
 
     private static int multiplyColor(int color, float multiplier) {
         int r = (int) (((color >> 16) & 0xFF) * multiplier);
         int g = (int) (((color >> 8) & 0xFF) * multiplier);
         int b = (int) ((color & 0xFF) * multiplier);
-        return (0xFF << 24) | (Mth.clamp(r, 0, 255) << 16) | (Mth.clamp(g, 0, 255) << 8) | Mth.clamp(b, 0, 255);
+        return (0xFF << 24) | (r << 16) | (g << 8) | b;
     }
 }

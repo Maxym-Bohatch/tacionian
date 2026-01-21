@@ -6,6 +6,7 @@ import com.maxim.tacionian.energy.PlayerEnergyProvider;
 import com.maxim.tacionian.network.EnergySyncPacket;
 import com.maxim.tacionian.network.NetworkHandler;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -30,19 +31,33 @@ public class EnergyCommand {
                                         )
                                 )
                         )
+                        .then(Commands.literal("add") // НОВА КОМАНДА: ADD
+                                .then(Commands.argument("targets", EntityArgument.players())
+                                        .then(Commands.argument("amount", IntegerArgumentType.integer(0))
+                                                .executes(context -> addEnergy(context.getSource(), EntityArgument.getPlayers(context, "targets"), IntegerArgumentType.getInteger(context, "amount")))
+                                        )
+                                )
+                        )
+                )
+                // ГЛУШИЛКА (JAM)
+                .then(Commands.literal("jam")
+                        .then(Commands.argument("targets", EntityArgument.players())
+                                .then(Commands.argument("enabled", BoolArgumentType.bool())
+                                        .executes(context -> jamPlayer(context.getSource(), EntityArgument.getPlayers(context, "targets"), BoolArgumentType.getBool(context, "enabled")))
+                                )
+                        )
                 )
                 // РІВЕНЬ
                 .then(Commands.literal("level")
                         .then(Commands.literal("set")
                                 .then(Commands.argument("targets", EntityArgument.players())
-                                        // ВИПРАВЛЕНО: Змінено ліміт з 10 на 100
                                         .then(Commands.argument("level", IntegerArgumentType.integer(1, TacionianConfig.MAX_LEVEL.get()))
                                                 .executes(context -> setLevel(context.getSource(), EntityArgument.getPlayers(context, "targets"), IntegerArgumentType.getInteger(context, "level")))
                                         )
                                 )
                         )
                 )
-                // ДОСВІД (EXP)
+                // ДОСВІД
                 .then(Commands.literal("exp")
                         .then(Commands.literal("add")
                                 .then(Commands.argument("targets", EntityArgument.players())
@@ -68,33 +83,46 @@ public class EnergyCommand {
         );
     }
 
-    // ... (setEnergy залишається без змін)
+    private static int addEnergy(CommandSourceStack source, Collection<ServerPlayer> targets, int amount) {
+        for (ServerPlayer player : targets) {
+            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
+                energy.receiveEnergyPure(amount, false);
+                sync(player, energy);
+            });
+        }
+        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Додано §f" + amount + " §7енергії."), true);
+        return targets.size();
+    }
+
+    private static int jamPlayer(CommandSourceStack source, Collection<ServerPlayer> targets, boolean enabled) {
+        for (ServerPlayer player : targets) {
+            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
+                // Тепер використовуємо постійний метод
+                energy.setPermanentJam(enabled);
+                sync(player, energy);
+            });
+        }
+        String status = enabled ? "§cБЛОКОВАНО" : "§aВІДНОВЛЕНО";
+        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Зв'язок з мережею: " + status), true);
+        return targets.size();
+    }
 
     private static int setLevel(CommandSourceStack source, Collection<ServerPlayer> targets, int level) {
         for (ServerPlayer player : targets) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                // Встановлюємо новий рівень
                 energy.setLevel(level);
-
-                // Скидаємо досвід та дробовий досвід в нуль для чистоти рівня
                 energy.setExperience(0);
-                // Якщо у тебе в PlayerEnergy є доступ до fractionalExperience,
-                // можна додати метод для його скидання, але зазвичай вистачає Experience
-
-                // Одразу заповнюємо енергію до нового максимуму
                 energy.setEnergy(energy.getMaxEnergy());
-
-                // Синхронізуємо з клієнтом
                 sync(player, energy);
             });
         }
-        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Рівень встановлено на §6" + level + " §7(Енергія заповнена)"), true);
+        source.sendSuccess(() -> Component.literal("§b[Tacionian] §7Рівень встановлено на §6" + level), true);
         return targets.size();
     }
 
     private static int setEnergy(CommandSourceStack source, Collection<ServerPlayer> targets, int amount) {
         for (ServerPlayer player : targets) {
-            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
+            player.getCapability(ServerPlayer.class.equals(player.getClass()) ? PlayerEnergyProvider.PLAYER_ENERGY : PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
                 energy.setEnergy(amount);
                 sync(player, energy);
             });

@@ -27,8 +27,9 @@ public class WirelessEnergyInterfaceBlock extends BaseEntityBlock {
         if (!level.isClientSide) {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof WirelessEnergyInterfaceBlockEntity interfaceBe) {
+                // Викликаємо зміну режиму
                 interfaceBe.cycleMode(player);
-                // ВЛАСНИЙ ЗВУК: Перемикання інтерфейсу
+                // Програємо звук
                 level.playSound(null, pos, ModSounds.MODE_SWITCH.get(), SoundSource.BLOCKS, 0.6f, 1.2f);
             }
         }
@@ -41,7 +42,7 @@ public class WirelessEnergyInterfaceBlock extends BaseEntityBlock {
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return ModBlockEntities.WIRELESS_BE.get().create(pos, state);
+        return new WirelessEnergyInterfaceBlockEntity(pos, state);
     }
 
     @Nullable

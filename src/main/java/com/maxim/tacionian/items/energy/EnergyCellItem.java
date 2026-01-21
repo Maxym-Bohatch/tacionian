@@ -82,7 +82,7 @@ public class EnergyCellItem extends Item {
             if (serverPlayer.isShiftKeyDown()) {
                 int toGive = Math.min(Math.min(stored, step), pEnergy.getMaxEnergy() - pEnergy.getEnergy());
                 if (toGive > 0) {
-                    pEnergy.receiveEnergy(toGive, false);
+                    pEnergy.receiveEnergyPure(toGive, false);
                     nbt.putInt("energy", stored - toGive);
                     // ЗВУК: Переливання в гравця
                     level.playSound(null, player.blockPosition(), ModSounds.MODE_SWITCH.get(), SoundSource.PLAYERS, 0.3f, 1.1f);

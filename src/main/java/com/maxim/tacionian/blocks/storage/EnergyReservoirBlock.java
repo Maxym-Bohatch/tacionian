@@ -70,7 +70,7 @@ public class EnergyReservoirBlock extends BaseEntityBlock {
                 if (player.isShiftKeyDown()) {
                     int extracted = reservoir.extractTacionEnergy(amount, false);
                     if (extracted > 0) {
-                        pEnergy.receiveEnergy(extracted, false);
+                        pEnergy.receiveEnergyPure(extracted, false);
                         player.displayClientMessage(Component.literal("§a[<] Витягнуто: " + extracted + " Tx"), true);
                         actionHappened = true;
                     }
@@ -79,7 +79,7 @@ public class EnergyReservoirBlock extends BaseEntityBlock {
                     if (taken > 0) {
                         int added = reservoir.receiveTacionEnergy(taken, false);
                         if (added < taken) {
-                            pEnergy.receiveEnergy(taken - added, false);
+                            pEnergy.receiveEnergyPure(taken - added, false);
                         }
                         player.displayClientMessage(Component.literal("§c[>] Залито: " + added + " Tx"), true);
                         actionHappened = true;

@@ -1,14 +1,11 @@
 package com.maxim.tacionian.blocks.storage;
 
 import com.maxim.tacionian.api.energy.ITachyonStorage;
-import com.maxim.tacionian.blocks.cable.TachyonCableBlockEntity;
 import com.maxim.tacionian.register.ModBlockEntities;
 import com.maxim.tacionian.register.ModCapabilities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.Connection;
-import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -27,58 +24,41 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, EnergyReservoirBlockEntity be) {
-        if (level.isClientSide || be.energy <= 0) return;
+        if (level.isClientSide) return;
 
-        // ПЕРЕДАЧА СУСІДАМ З ЛОГІКОЮ ПРІОРИТЕТУ
         for (Direction dir : Direction.values()) {
-            if (be.energy <= 0) break;
-
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-            if (neighbor != null) {
-                neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(storage -> {
+            if (neighbor == null) continue;
 
-                    // ЛОГІКА ЗАРЯДКИ/РОЗРЯДКИ:
-                    // Резервуар віддає енергію лише якщо в ньому БІЛЬШЕ енергії, ніж у сусіда.
-                    // Це дозволяє енергії "затікати" в бак, коли він порожній, і витікати, коли мережа порожня.
-                    if (be.energy > storage.getEnergy()) {
-                        int toPush = Math.min(be.energy - storage.getEnergy(), 1000); // Штовхаємо різницю, але не більше ліміту
+            neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(net -> {
+                // ПАРИТЕТНА ПЕРЕДАЧА: Вирівнюємо рівень енергії між баком і мережею
+                // Якщо в баку відсотково більше енергії, ніж в мережі — віддаємо.
+                double myFill = (double)be.energy / be.MAX_CAPACITY;
+                double netFill = (double)net.getEnergy() / net.getMaxCapacity();
 
-                        if (toPush > 0) {
-                            int accepted = storage.receiveTacionEnergy(toPush, false);
-                            be.extractTacionEnergy(accepted, false);
-                        }
-                    }
-                });
-            }
+                if (myFill > netFill) {
+                    int toPush = Math.min(be.energy, 500);
+                    int accepted = net.receiveTacionEnergy(toPush, false);
+                    be.extractTacionEnergy(accepted, false);
+                } else if (netFill > myFill) {
+                    int toPull = Math.min(net.getEnergy(), 500);
+                    int taken = net.extractTacionEnergy(toPull, false);
+                    be.receiveTacionEnergy(taken, false);
+                }
+            });
         }
     }
 
-    @Override
-    public int receiveTacionEnergy(int amount, boolean simulate) {
-        int space = MAX_CAPACITY - energy;
-        int toAdd = Math.min(amount, space);
-        if (!simulate && toAdd > 0) {
-            energy += toAdd;
-            updateBlock();
-        }
+    @Override public int receiveTacionEnergy(int amount, boolean simulate) {
+        int toAdd = Math.min(amount, MAX_CAPACITY - energy);
+        if (!simulate && toAdd > 0) { energy += toAdd; setChanged(); }
         return toAdd;
     }
 
-    @Override
-    public int extractTacionEnergy(int amount, boolean simulate) {
-        int toExtract = Math.min(amount, energy);
-        if (!simulate && toExtract > 0) {
-            energy -= toExtract;
-            updateBlock();
-        }
-        return toExtract;
-    }
-
-    private void updateBlock() {
-        setChanged();
-        if (level != null && !level.isClientSide) {
-            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
-        }
+    @Override public int extractTacionEnergy(int amount, boolean simulate) {
+        int toTake = Math.min(amount, energy);
+        if (!simulate && toTake > 0) { energy -= toTake; setChanged(); }
+        return toTake;
     }
 
     @Override public int getEnergy() { return energy; }
@@ -89,11 +69,6 @@ public class EnergyReservoirBlockEntity extends BlockEntity implements ITachyonS
         return super.getCapability(cap, side);
     }
 
-    @Override public void invalidateCaps() { super.invalidateCaps(); holder.invalidate(); }
-
-    @Override public void load(CompoundTag nbt) { super.load(nbt); this.energy = nbt.getInt("StoredTacion"); }
-    @Override protected void saveAdditional(CompoundTag nbt) { super.saveAdditional(nbt); nbt.putInt("StoredTacion", energy); }
-    @Override public CompoundTag getUpdateTag() { CompoundTag tag = super.getUpdateTag(); saveAdditional(tag); return tag; }
-    @Nullable @Override public ClientboundBlockEntityDataPacket getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }
-    @Override public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) { if (pkt.getTag() != null) load(pkt.getTag()); }
+    @Override protected void saveAdditional(CompoundTag nbt) { nbt.putInt("Energy", energy); super.saveAdditional(nbt); }
+    @Override public void load(CompoundTag nbt) { super.load(nbt); this.energy = nbt.getInt("Energy"); }
 }
