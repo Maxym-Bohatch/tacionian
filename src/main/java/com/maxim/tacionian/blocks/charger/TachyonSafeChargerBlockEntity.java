@@ -10,6 +10,6 @@ public class TachyonSafeChargerBlockEntity extends TachyonChargerBlockEntity {
 
     @Override
     protected float getEfficiency() {
-        return 1.0f; // 100% ефективність для сейф-версії
+        return 1.0f; // 100% ефективність (без втрат)
     }
 }

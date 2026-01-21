@@ -21,24 +21,19 @@ public class TacionianBlockItem extends BlockItem {
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         Block block = this.getBlock();
 
-        // 1. Бездротовий інтерфейс
         if (block == ModBlocks.WIRELESS_ENERGY_INTERFACE.get()) {
             tooltip.add(Component.translatable("tooltip.tacionian.wireless_interface.desc").withStyle(ChatFormatting.AQUA));
-            tooltip.add(Component.translatable("tooltip.tacionian.wireless_interface.power").withStyle(ChatFormatting.GRAY));
         }
-        // 2. Стабілізаційна плита
         else if (block == ModBlocks.STABILIZATION_PLATE.get()) {
             tooltip.add(Component.translatable("tooltip.tacionian.stabilization_plate.desc").withStyle(ChatFormatting.GREEN));
         }
-        // 3. Блок безпечної зарядки (додано)
+        // Використовуємо твої назви змінних:
         else if (block == ModBlocks.SAFE_CHARGER_BLOCK.get()) {
             tooltip.add(Component.translatable("tooltip.tacionian.safe_charger_block.desc").withStyle(ChatFormatting.YELLOW));
         }
-        // 4. Резервуар енергії
         else if (block == ModBlocks.ENERGY_RESERVOIR.get()) {
             tooltip.add(Component.translatable("tooltip.tacionian.energy_reservoir.desc").withStyle(ChatFormatting.BLUE));
         }
-        // 5. Базовий блок (якщо такий є)
         else if (block == ModBlocks.BASIC_CHARGER_BLOCK.get()) {
             tooltip.add(Component.translatable("tooltip.tacionian.basic_charger_block.desc").withStyle(ChatFormatting.GRAY));
         }

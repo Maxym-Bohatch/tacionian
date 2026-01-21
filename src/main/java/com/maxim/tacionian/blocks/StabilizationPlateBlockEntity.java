@@ -24,18 +24,23 @@ public class StabilizationPlateBlockEntity extends BlockEntity implements ITachy
     public static void tick(Level level, BlockPos pos, BlockState state, StabilizationPlateBlockEntity be) {
         if (level.isClientSide || be.storedEnergy <= 0) return;
 
-        // Передача енергії в сусідні тахіонні кабелі
+        // Збільшуємо швидкість передачі до кабелів (наприклад, 100 за тік)
+        int transferRate = 100;
+
         for (Direction dir : Direction.values()) {
             if (be.storedEnergy <= 0) break;
+
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor == null) continue;
 
             neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                int toPush = Math.min(be.storedEnergy, 50);
-                int accepted = cap.receiveTacionEnergy(toPush, false);
-                if (accepted > 0) {
-                    be.storedEnergy -= accepted;
-                    be.setChanged();
+                if (cap.getEnergy() < cap.getMaxCapacity()) {
+                    int toPush = Math.min(be.storedEnergy, transferRate);
+                    int accepted = cap.receiveTacionEnergy(toPush, false);
+                    if (accepted > 0) {
+                        be.storedEnergy -= accepted;
+                        be.setChanged(); // ВАЖЛИВО для збереження стану
+                    }
                 }
             });
         }

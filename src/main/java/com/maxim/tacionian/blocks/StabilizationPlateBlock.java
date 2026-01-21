@@ -44,40 +44,43 @@ public class StabilizationPlateBlock extends BaseEntityBlock {
             if (!(be instanceof StabilizationPlateBlockEntity plateBE)) return;
 
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                // Миттєвий захист від дебафів
                 energy.setRemoteStabilized(true);
 
-                if (energy.getEnergyPercent() > 95) {
-                    int energyBefore = energy.getEnergy();
-                    int stableLimit = (int)(energy.getMaxEnergy() * 0.95f);
-                    int releasedEnergy = energyBefore - stableLimit;
+                // Активне скидання: якщо енергія > 90% АБО гравець присів
+                boolean isHighEnergy = energy.getEnergyPercent() > 90;
+                boolean isDraining = player.isCrouching();
 
-                    // 1. Спроба злити в кабелі через BlockEntity плити
-                    int acceptedByCables = plateBE.receiveTacionEnergy(releasedEnergy, false);
+                if (isHighEnergy || isDraining) {
+                    // Визначаємо, скільки хочемо забрати (40 за тік при присіданні, або надлишок над 90%)
+                    int toExtract = isDraining ? 40 : (energy.getEnergy() - (int)(energy.getMaxEnergy() * 0.90f));
 
-                    // 2. Те, що не влізло, стає "викидом" у небо
-                    int leftovers = releasedEnergy - acceptedByCables;
+                    if (toExtract > 0) {
+                        // 1. Спроба передати в BlockEntity плити (а звідти в кабелі)
+                        int acceptedByPlate = plateBE.receiveTacionEnergy(toExtract, false);
 
-                    // Оновлюємо енергію гравця
-                    energy.setEnergy(stableLimit);
-                    energy.sync(player);
+                        // 2. Видаляємо енергію у гравця (тільки те, що прийняла плита)
+                        if (acceptedByPlate > 0) {
+                            energy.extractEnergyPure(acceptedByPlate, false);
+                            energy.sync(player);
 
-                    if (level instanceof ServerLevel serverLevel) {
-                        // Ефект заземлення (іскри біля ніг)
-                        serverLevel.sendParticles(ParticleTypes.ELECTRIC_SPARK, pos.getX() + 0.5, pos.getY() + 1.1, pos.getZ() + 0.5, 5, 0.2, 0.1, 0.2, 0.1);
+                            if (level instanceof ServerLevel serverLevel) {
+                                // Ефект іскор під ногами (завжди при передачі)
+                                serverLevel.sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                                        player.getX(), player.getY() + 0.1, player.getZ(), 3, 0.1, 0.1, 0.1, 0.05);
 
-                        // Ефект викиду в небо (тільки якщо кабелі повні)
-                        if (leftovers > 0) {
-                            for (int i = 1; i < 6; i++) {
-                                serverLevel.sendParticles(ParticleTypes.SOUL_FIRE_FLAME,
-                                        pos.getX() + 0.5, pos.getY() + (i * 0.8), pos.getZ() + 0.5,
-                                        2, 0.1, 0.2, 0.1, 0.02);
+                                // Якщо плита повна (не прийняла все), пускаємо вогонь у небо
+                                if (acceptedByPlate < toExtract && player.tickCount % 5 == 0) {
+                                    serverLevel.sendParticles(ParticleTypes.SOUL_FIRE_FLAME,
+                                            pos.getX() + 0.5, pos.getY() + 1.2, pos.getZ() + 0.5, 5, 0.1, 0.5, 0.1, 0.05);
+                                }
+                            }
+
+                            // Звук кожні кілька тіків
+                            if (player.tickCount % 10 == 0) {
+                                level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.3f, 1.2f);
                             }
                         }
                     }
-
-                    // Звук стабілізації
-                    level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.5f, 0.7f);
                 }
             });
         }

@@ -70,86 +70,81 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
     public static void tick(Level level, BlockPos pos, BlockState state, WirelessEnergyInterfaceBlockEntity be) {
         if (level.isClientSide) return;
 
+        // 1. АВТОНОМНА ПЕРЕДАЧА ЕНЕРГІЇ (Працює завжди)
+        // Шукаємо найближчого гравця в радіусі 20 блоків для нарахування досвіду
+        ServerPlayer closestPlayer = (ServerPlayer) level.getNearestPlayer(pos.getX(), pos.getY(), pos.getZ(), 20, true);
+        be.processEnergyTransfer(level, pos, closestPlayer);
+
+        // 2. ВЗАЄМОДІЯ З ГРАВЦЯМИ
         AABB area = new AABB(pos).inflate(20);
         List<Player> players = level.getEntitiesOfClass(Player.class, area);
 
-        // Визначаємо поріг скидання енергії залежно від режиму
+        // Поріг для збору енергії (Safe: 75%, Balanced: 40%, Performance: 15%, Unrestricted: 0%)
         int threshold = switch (be.mode) { case 0 -> 75; case 1 -> 40; case 2 -> 15; default -> 0; };
 
+        boolean changed = false;
         for (Player player : players) {
             if (player instanceof ServerPlayer serverPlayer) {
-                serverPlayer.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
-                    // Сигналізуємо гравцю, що він у зоні дії інтерфейсу
+                var cap = serverPlayer.getCapability(PlayerEnergyProvider.PLAYER_ENERGY);
+                if (cap.isPresent()) {
+                    var pEnergy = cap.orElse(null);
+
+                    // ГОЛОВНЕ: Стабілізуємо гравця, щоб він не вибухнув поруч
                     pEnergy.setRemoteStabilized(true);
 
-                    // Логіка збору надлишків енергії
-                    if (pEnergy.isOverloaded()) {
-                        int over = pEnergy.getEnergy() - pEnergy.getMaxEnergy();
-                        int toTransfer = Math.min(over, 100);
-                        int accepted = be.receiveFromPlayer(pEnergy.extractEnergyPure(toTransfer, false), false);
+                    // Якщо енергія гравця вища за поріг режиму АБО гравець перевантажений (isOverloaded)
+                    // Для 1 рівня перевантаження тепер 95%, але threshold 75% дозволить забирати раніше
+                    if (pEnergy.getEnergyPercent() > threshold || pEnergy.isOverloaded()) {
+                        int toExtract = 50; // Базова швидкість викачування
+                        int extracted = pEnergy.extractEnergyPure(toExtract, false);
+                        int accepted = be.receiveFromPlayer(extracted, false);
 
-                        // Досвід за "спалену" енергію, яка не влазить в буфер
-                        int waste = toTransfer - accepted;
-                        if (waste > 0) pEnergy.addExperience(waste * 0.01f, serverPlayer);
-
-                    } else if (pEnergy.getEnergyPercent() > threshold) {
-                        // Скидання енергії в інтерфейс згідно з режимом
-                        be.receiveFromPlayer(pEnergy.extractEnergyPure(50, false), false);
+                        // Якщо буфер блока повний, енергія "спалюється" в досвід
+                        if (accepted < extracted) {
+                            pEnergy.addExperience((extracted - accepted) * 0.02f, serverPlayer);
+                        }
+                        changed = true;
                     }
 
-                    // Передача енергії в сусідні блоки
-                    be.processEnergyTransfer(level, pos, serverPlayer);
-
-                    // Синхронізація енергії кожні півсекунди
+                    // Синхронізація кожні 10 тіків
                     if (level.getGameTime() % 10 == 0) pEnergy.sync(serverPlayer);
-                });
+                }
             }
         }
-    }
 
-    private void processEnergyTransfer(Level level, BlockPos pos, ServerPlayer player) {
+        if (changed) {
+            be.setChanged();
+            level.sendBlockUpdated(pos, state, state, 3);
+        }
+    }
+    private void processEnergyTransfer(Level level, BlockPos pos, @Nullable ServerPlayer player) {
+        // Тепер цей метод не залежить від того, чи є гравець у циклі
         if (storedEnergy <= 0) return;
 
         for (Direction dir : Direction.values()) {
             if (storedEnergy <= 0) break;
-            BlockPos neighborPos = pos.relative(dir);
-            BlockEntity neighbor = level.getBlockEntity(neighborPos);
+            BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor == null || neighbor instanceof WirelessEnergyInterfaceBlockEntity) continue;
 
-            // 1. ПЕРЕДАЧА В ТАХІОННІ МЕРЕЖІ (Без досвіду)
+            // Передача в Тх мережі
             neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(txCap -> {
-                if (storedEnergy > 0) {
-                    int toPush = Math.min(storedEnergy, 100);
-                    int accepted = txCap.receiveTacionEnergy(toPush, false);
-                    if (accepted > 0) {
-                        this.extractTacionEnergy(accepted, false);
-                        // Досвід тут НЕ нараховуємо, бо це просто перелив Tx
-                    }
-                }
+                int accepted = txCap.receiveTacionEnergy(Math.min(storedEnergy, 100), false);
+                if (accepted > 0) this.extractTacionEnergy(accepted, false);
             });
 
-            // 2. КОНВЕРТАЦІЯ В RF (Тут нараховується досвід)
+            // Конвертація в RF (Досвід даємо тільки якщо player != null)
             if (storedEnergy > 0) {
                 neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(rfCap -> {
                     if (rfCap.canReceive()) {
-                        int maxRfAvailable = storedEnergy * 10;
-                        int acceptedRF = rfCap.receiveEnergy(Math.min(maxRfAvailable, 1000), false);
-
-                        // Конвертуємо RF назад у витрачений Tx для списування з буфера
+                        int acceptedRF = rfCap.receiveEnergy(Math.min(storedEnergy * 10, 1000), false);
                         int usedTx = (int) Math.ceil(acceptedRF / 10.0);
-
                         if (usedTx > 0) {
                             this.extractTacionEnergy(usedTx, false);
 
-                            // НАГОРОДА: Досвід нараховується ТІЛЬКИ за успішну конвертацію в RF
-                            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY)
-                                    .ifPresent(e -> e.addExperience(usedTx * 0.15f, player));
-
-                            // Ефект іскор при конвертації
-                            if (level instanceof ServerLevel sl && level.random.nextFloat() < 0.3f) {
-                                sl.sendParticles(ParticleTypes.ELECTRIC_SPARK,
-                                        neighborPos.getX() + 0.5, neighborPos.getY() + 0.5, neighborPos.getZ() + 0.5,
-                                        3, 0.1, 0.1, 0.1, 0.05);
+                            // Даємо досвід гравцю, якщо він поруч
+                            if (player != null) {
+                                player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY)
+                                        .ifPresent(e -> e.addExperience(usedTx * 0.15f, player));
                             }
                         }
                     }

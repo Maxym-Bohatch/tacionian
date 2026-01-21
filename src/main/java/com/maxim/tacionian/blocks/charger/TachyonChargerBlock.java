@@ -17,21 +17,28 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.Nullable;
 
 public class TachyonChargerBlock extends BaseEntityBlock {
-    private final boolean isSafe;
+    protected final boolean isSafe;
 
-    public TachyonChargerBlock(Properties props, boolean isSafe) {
+    // Цей конструктор має бути PUBLIC, щоб ModBlocks його бачив
+    public TachyonChargerBlock(BlockBehaviour.Properties props, boolean isSafe) {
         super(props);
         this.isSafe = isSafe;
     }
 
+    // Додатковий конструктор (про всяк випадок)
+    public TachyonChargerBlock(BlockBehaviour.Properties props) {
+        this(props, false);
+    }
     @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
 
     @Nullable @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        // Якщо це безпечний блок, створюємо безпечне BE, інакше звичайне
         return isSafe ? new TachyonSafeChargerBlockEntity(pos, state) : new TachyonChargerBlockEntity(pos, state);
     }
 
@@ -46,41 +53,32 @@ public class TachyonChargerBlock extends BaseEntityBlock {
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof TachyonChargerBlockEntity charger) {
 
-            // 1. Логіка вилучення енергії назад (Shift + ПКМ)
             if (player.isShiftKeyDown()) {
                 charger.handlePlayerExtraction(serverPlayer);
                 return InteractionResult.SUCCESS;
             }
 
-            // 2. Логіка зарядки блоку від гравця
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
-                // Перевіряємо ліміт безпеки
+                // ПЕРЕВІРКА ЛІМІТУ: 15% для безпечного, 0% для звичайного
                 int minLimit = isSafe ? (int)(pEnergy.getMaxEnergy() * 0.15f) : 0;
 
                 if (pEnergy.getEnergy() > minLimit) {
-                    int amountToTry = 100;
-
-                    // ПЕРЕВІРКА: Скільки блок може прийняти (simulate = true)
-                    int canAccept = charger.receiveTacionEnergy(amountToTry, true);
-
+                    int canAccept = charger.receiveTacionEnergy(100, true);
                     if (canAccept > 0) {
-                        // Вилучаємо енергію у гравця БЕЗ автоматичного досвіду (Pure)
-                        int takenFromPlayer = pEnergy.extractEnergyPure(canAccept, false);
+                        int available = pEnergy.getEnergy() - minLimit;
+                        int toTransfer = Math.min(canAccept, available);
 
-                        if (takenFromPlayer > 0) {
-                            // Реально додаємо її в буфер блоку
-                            charger.receiveTacionEnergy(takenFromPlayer, false);
+                        if (toTransfer > 0) {
+                            int taken = pEnergy.extractEnergyPure(toTransfer, false);
+                            charger.receiveTacionEnergy(taken, false);
 
-                            // НАРАХОВУЄМО ДОСВІД ВРУЧНУ (тільки за реальну заправку)
-                            pEnergy.addExperience(takenFromPlayer * 0.1f, serverPlayer);
+                            pEnergy.addExperience(taken * 0.1f, serverPlayer);
                             pEnergy.sync(serverPlayer);
 
                             level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.7f, 1.4f);
                         }
                     }
-                    // Якщо блок повний — нічого не робимо, досвід не витрачається
                 } else {
-                    // Повідомлення про спрацювання захисту (тепер має бути в локалізації)
                     player.displayClientMessage(Component.translatable("message.tacionian.safety_limit").withStyle(ChatFormatting.RED), true);
                     level.playSound(null, pos, net.minecraft.sounds.SoundEvents.NOTE_BLOCK_BASS.get(), SoundSource.BLOCKS, 1.0f, 0.5f);
                 }
@@ -88,5 +86,4 @@ public class TachyonChargerBlock extends BaseEntityBlock {
         }
         return InteractionResult.SUCCESS;
     }
-
-    }
+}

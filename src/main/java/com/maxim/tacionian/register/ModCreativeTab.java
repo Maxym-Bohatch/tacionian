@@ -18,19 +18,17 @@ public class ModCreativeTab {
                     .title(Component.translatable("itemGroup.tacionian_tab"))
                     .icon(() -> new ItemStack(ModItems.ENERGY_STABILIZER.get())) // Переконайся, що цей предмет існує в ModItems
                     .displayItems((params, output) -> {
-                        // Предмети
-                        output.accept(ModItems.ENERGY_STABILIZER.get());
-                        output.accept(ModItems.ENERGY_CELL.get());
-                        output.accept(ModItems.BASIC_CHARGER_ITEM.get());
-                        output.accept(ModItems.SAFE_CHARGER_ITEM.get());
+                        output.accept(new ItemStack(ModItems.ENERGY_STABILIZER.get()));
+                        output.accept(new ItemStack(ModItems.ENERGY_CELL.get()));
+                        output.accept(new ItemStack(ModItems.BASIC_CHARGER_ITEM.get())); // Твій предмет
+                        output.accept(new ItemStack(ModItems.SAFE_CHARGER_ITEM.get()));
 
-                        // Блоки
-                        output.accept(ModBlocks.STABILIZATION_PLATE.get());
-                        output.accept(ModBlocks.BASIC_CHARGER_BLOCK.get());
-                        output.accept(ModBlocks.SAFE_CHARGER_BLOCK.get());
-                        output.accept(ModBlocks.ENERGY_RESERVOIR.get());
-                        output.accept(ModBlocks.WIRELESS_ENERGY_INTERFACE.get());
-                        output.accept(ModBlocks.TACHYON_CABLE.get());
+                        output.accept(new ItemStack(ModBlocks.BASIC_CHARGER_BLOCK.get())); // Твій блок (тепер з ітемом!)
+                        output.accept(new ItemStack(ModBlocks.SAFE_CHARGER_BLOCK.get()));
+                        output.accept(new ItemStack(ModBlocks.STABILIZATION_PLATE.get()));
+                        output.accept(new ItemStack(ModBlocks.ENERGY_RESERVOIR.get()));
+                        output.accept(new ItemStack(ModBlocks.WIRELESS_ENERGY_INTERFACE.get()));
+                        output.accept(new ItemStack(ModBlocks.TACHYON_CABLE.get()));
                     })
                     .build());
 
