@@ -112,7 +112,7 @@ public class EnergyCommand {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
                 energy.setLevel(level);
                 energy.setExperience(0);
-                energy.setEnergy(energy.getMaxEnergy());
+                energy.setEnergy(energy.getMaxEnergy()/2);
                 sync(player, energy);
             });
         }
