@@ -1,12 +1,10 @@
 package com.maxim.tacionian.blocks.cable;
 
-import com.maxim.tacionian.register.ModBlockEntities;
 import com.maxim.tacionian.register.ModCapabilities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
@@ -37,6 +35,7 @@ public class TachyonCableBlock extends Block implements EntityBlock {
     public static final BooleanProperty DOWN = BlockStateProperties.DOWN;
 
     private static final VoxelShape CENTER_SHAPE = Block.box(6, 6, 6, 10, 10, 10);
+    // Кешуємо шейпи для сторін
     private static final Map<Direction, VoxelShape> SHAPES = Map.of(
             Direction.NORTH, Block.box(6, 6, 0, 10, 10, 6),
             Direction.SOUTH, Block.box(6, 6, 10, 10, 10, 16),
@@ -49,8 +48,7 @@ public class TachyonCableBlock extends Block implements EntityBlock {
     public TachyonCableBlock(Properties props) {
         super(props.lightLevel(state -> state.getValue(LIGHT_LEVEL) * 4));
         this.registerDefaultState(this.stateDefinition.any()
-                .setValue(POWERED, false)
-                .setValue(LIGHT_LEVEL, 0)
+                .setValue(POWERED, false).setValue(LIGHT_LEVEL, 0)
                 .setValue(NORTH, false).setValue(SOUTH, false)
                 .setValue(EAST, false).setValue(WEST, false)
                 .setValue(UP, false).setValue(DOWN, false));
@@ -92,7 +90,9 @@ public class TachyonCableBlock extends Block implements EntityBlock {
 
     private boolean canConnectTo(LevelAccessor level, BlockPos neighborPos, Direction side) {
         BlockEntity be = level.getBlockEntity(neighborPos);
-        return be != null && be.getCapability(ModCapabilities.TACHYON_STORAGE, side).isPresent();
+        if (be == null) return false;
+        // СУВОРА ПЕРЕВІРКА: Тільки Тахіонна капабіліті. Жодного RF.
+        return be.getCapability(ModCapabilities.TACHYON_STORAGE, side).isPresent();
     }
 
     @Override
@@ -100,9 +100,11 @@ public class TachyonCableBlock extends Block implements EntityBlock {
         builder.add(POWERED, LIGHT_LEVEL, NORTH, SOUTH, EAST, WEST, UP, DOWN);
     }
 
-    @Nullable @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new TachyonCableBlockEntity(pos, state); }
+    @Nullable @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new TachyonCableBlockEntity(pos, state);
+    }
 
-    @Nullable @Override public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+    @Nullable @Override public <T extends BlockEntity> BlockEntityTicker<T> getTicker(net.minecraft.world.level.Level level, BlockState state, BlockEntityType<T> type) {
         return level.isClientSide ? null : (lvl, pos, st, be) -> {
             if (be instanceof TachyonCableBlockEntity cable) TachyonCableBlockEntity.tick(lvl, pos, st, cable);
         };

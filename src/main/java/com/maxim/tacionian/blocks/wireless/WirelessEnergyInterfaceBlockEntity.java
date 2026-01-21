@@ -112,25 +112,49 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
 
         for (Direction dir : Direction.values()) {
             if (storedEnergy <= 0) break;
-            BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+            BlockPos neighborPos = pos.relative(dir);
+            BlockEntity neighbor = level.getBlockEntity(neighborPos);
             if (neighbor == null || neighbor instanceof WirelessEnergyInterfaceBlockEntity) continue;
 
-            // Передача в RF-машини
-            neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(cap -> {
-                if (cap.canReceive()) {
-                    int acceptedRF = cap.receiveEnergy(Math.min(storedEnergy * 10, 500), false);
-                    int usedTx = acceptedRF / 10;
-                    if (usedTx > 0) {
-                        this.extractTacionEnergy(usedTx, false);
-                        // Досвід за бездротове живлення бази
-                        player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e -> e.addExperience(usedTx * 0.15f, player));
-
-                        if (level instanceof ServerLevel sl) {
-                            sl.sendParticles(ParticleTypes.ELECTRIC_SPARK, pos.getX()+0.5, pos.getY()+1.2, pos.getZ()+0.5, 2, 0.2, 0.2, 0.2, 0.02);
-                        }
+            // 1. ПЕРЕДАЧА В ТАХІОННІ МЕРЕЖІ (Без досвіду)
+            neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(txCap -> {
+                if (storedEnergy > 0) {
+                    int toPush = Math.min(storedEnergy, 100);
+                    int accepted = txCap.receiveTacionEnergy(toPush, false);
+                    if (accepted > 0) {
+                        this.extractTacionEnergy(accepted, false);
+                        // Досвід тут НЕ нараховуємо, бо це просто перелив Tx
                     }
                 }
             });
+
+            // 2. КОНВЕРТАЦІЯ В RF (Тут нараховується досвід)
+            if (storedEnergy > 0) {
+                neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(rfCap -> {
+                    if (rfCap.canReceive()) {
+                        int maxRfAvailable = storedEnergy * 10;
+                        int acceptedRF = rfCap.receiveEnergy(Math.min(maxRfAvailable, 1000), false);
+
+                        // Конвертуємо RF назад у витрачений Tx для списування з буфера
+                        int usedTx = (int) Math.ceil(acceptedRF / 10.0);
+
+                        if (usedTx > 0) {
+                            this.extractTacionEnergy(usedTx, false);
+
+                            // НАГОРОДА: Досвід нараховується ТІЛЬКИ за успішну конвертацію в RF
+                            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY)
+                                    .ifPresent(e -> e.addExperience(usedTx * 0.15f, player));
+
+                            // Ефект іскор при конвертації
+                            if (level instanceof ServerLevel sl && level.random.nextFloat() < 0.3f) {
+                                sl.sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                                        neighborPos.getX() + 0.5, neighborPos.getY() + 0.5, neighborPos.getZ() + 0.5,
+                                        3, 0.1, 0.1, 0.1, 0.05);
+                            }
+                        }
+                    }
+                });
+            }
         }
     }
 

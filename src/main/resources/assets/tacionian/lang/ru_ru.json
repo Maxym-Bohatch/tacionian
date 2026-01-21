@@ -5,22 +5,61 @@
   "tooltip.tacionian.energy_cell.controls_1": "§6[Shift] §7— Детали",
   "tooltip.tacionian.energy_cell.controls_2": "§6[ПКМ] §7— Обмен энергией",
   "tooltip.tacionian.energy_cell.block_hint": "§eПКМ по Резервуару: §7Зарядить ядро\n§eShift+ПКМ по Резервуару: §7Разрядить ядро",
+
   "item.tacionian.energy_stabilizer": "Портативный Стабилизатор",
   "tooltip.tacionian.energy_stabilizer.desc": "§7Регулирует поток тахионов, предотвращая перегрузку вашего внутреннего ядра.",
   "tooltip.tacionian.energy_stabilizer.mode": "Текущий режим: ",
   "tooltip.tacionian.energy_stabilizer.use_info": "§eУдерживайте ПКМ: §7Быстрый сброс излишков энергии",
+
+  "item.tacionian.basic_charger_item": "Базовый тахионный зарядник",
+  "tooltip.tacionian.basic_charger_item.desc": "§7Медленно заряжает TX/RF предметы в инвентаре (§e10 Tx/t§7).",
+
+  "item.tacionian.safe_charger_item": "Безопасный тахионный зарядник",
+  "tooltip.tacionian.safe_charger_item.desc": "§7Заряжает TX/RF предметы. §cАвтоотключение§7, если энергия игрока <15%.",
+
   "block.tacionian.stabilization_plate": "Стабилизирующая Плита",
   "tooltip.tacionian.stabilization_plate.desc": "§7Пассивно поглощает нестабильность. §eShift + Стоять на плите: §7Быстрая разрядка.",
+
   "block.tacionian.energy_reservoir": "Энергетический Резервуар",
   "tooltip.tacionian.energy_reservoir.desc": "§7Хранилище большой емкости для тахионной энергии.",
+  "tooltip.tacionian.energy_reservoir.unstable_note": "§d⚠ Энергия теряется при демонтаже без Шелкового касания!",
   "tooltip.tacionian.energy_reservoir.energy": "Сохранено: §b%s / %s Tx",
+
+  "block.tacionian.wireless_energy_interface": "Беспроводной интерфейс",
+  "tooltip.tacionian.wireless_interface.desc": "§7Транслирует энергию из вашего внутреннего ядра в сеть.",
+  "tooltip.tacionian.wireless_interface.power": "§7Радиус действия: §e20 блоков",
+
+  "block.tacionian.basic_charger_block": "Зарядный блок",
+  "tooltip.tacionian.basic_charger_block.desc": "§7Преобразует вашу энергию в сетевую (скорость: §e500 Tx/t§7).",
+
+  "block.tacionian.safe_charger_block": "Безопасный зарядный блок",
+  "tooltip.tacionian.safe_charger_block.desc": "§7Передает энергию в сеть. Прекращает работу при §e20%§7 вашего заряда.",
+
+  "block.tacionian.tachyon_cable": "Тахионный кабель",
+  "tooltip.tacionian.tachyon_cable.desc": "§7Транспортирует энергию между механизмами. Пропускная способность: §b1000 Tx/t§7.",
+
   "message.tacionian.level_up": "§b[Tacionian] §fУровень ядра повышен до: §6%s",
-  "message.tacionian.overload_critical": "§c§lКРИТИЧЕСКАЯ ПЕРЕГРУЗКА! §7Структура ядра коллапсирует! (>150%)",
+  "message.tacionian.level_down": "§4§lВНИМАНИЕ! §cУровень ядра упал до: %s",
+  "message.tacionian.mode_switched": "Режим интерфейса: %s",
+  "message.tacionian.overload_critical": "§c§lКРИТИЧНО! §7Структура ядра коллапсирует! (>150%)",
   "message.tacionian.low_energy_warning": "§eЯдро нестабильно! Низкий уровень энергии!",
   "message.tacionian.jammed_warning": "§e§lСИГНАЛ ПОТЕРЯН! §7Связь заблокирована глушилкой!",
+
+  "message.tacionian.charged": "§aЯдро заряжено: +%s Tx",
+  "message.tacionian.discharged": "§cЯдро разряжено: -%s Tx",
+  "message.tacionian.safety_limit": "Система безопасности: критически низкий уровень тахионной энергии!",
+  "mode.tacionian.safe": "§aЭкономный (Запас ядра: 75%)",
+  "mode.tacionian.balanced": "§eУмеренный (Запас ядра: 40%)",
+  "mode.tacionian.performance": "§6Активный (Запас ядра: 15%)",
+  "mode.tacionian.unrestricted": "§4Агрессивный (Выкачка до нуля)",
+
   "hud.tacionian.level": "Уровень %s",
   "hud.tacionian.energy_unit": "Tx",
+  "tooltip.tacionian.active": "§aСТАТУС: АКТИВНО",
+  "tooltip.tacionian.inactive": "§cСТАТУС: НЕАКТИВНО",
+  "tooltip.tacionian.level": "Ур. ядра",
   "death.attack.tacionian.energy": "Ядро %1$s коллапсировало из-за энергетической перегрузки",
   "subtitles.tacionian.energy_charge": "Поток тахионной энергии",
+  "subtitles.tacionian.mode_switch": "Устройство щелкает",
   "subtitles.tacionian.tachyon_hum": "Гудение тахионного ядра"
 }

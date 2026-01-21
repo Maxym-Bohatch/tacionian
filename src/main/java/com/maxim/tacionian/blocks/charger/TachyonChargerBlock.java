@@ -54,24 +54,33 @@ public class TachyonChargerBlock extends BaseEntityBlock {
 
             // 2. Логіка зарядки блоку від гравця
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
-                // Перевіряємо ліміт безпеки для Safe-версії (15%)
+                // Перевіряємо ліміт безпеки
                 int minLimit = isSafe ? (int)(pEnergy.getMaxEnergy() * 0.15f) : 0;
 
                 if (pEnergy.getEnergy() > minLimit) {
-                    // Блок намагається прийняти енергію
-                    int amountToGive = 100;
-                    int acceptedTx = charger.receiveTacionEnergy(amountToGive, false);
+                    int amountToTry = 100;
 
-                    if (acceptedTx > 0) {
-                        // Забираємо енергію у гравця і даємо досвід (використовує множник 0.5 з конфігу)
-                        pEnergy.extractEnergyWithExp(acceptedTx, false, serverPlayer);
-                        pEnergy.sync(serverPlayer);
+                    // ПЕРЕВІРКА: Скільки блок може прийняти (simulate = true)
+                    int canAccept = charger.receiveTacionEnergy(amountToTry, true);
 
-                        // Звуковий фідбек
-                        level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.7f, 1.4f);
+                    if (canAccept > 0) {
+                        // Вилучаємо енергію у гравця БЕЗ автоматичного досвіду (Pure)
+                        int takenFromPlayer = pEnergy.extractEnergyPure(canAccept, false);
+
+                        if (takenFromPlayer > 0) {
+                            // Реально додаємо її в буфер блоку
+                            charger.receiveTacionEnergy(takenFromPlayer, false);
+
+                            // НАРАХОВУЄМО ДОСВІД ВРУЧНУ (тільки за реальну заправку)
+                            pEnergy.addExperience(takenFromPlayer * 0.1f, serverPlayer);
+                            pEnergy.sync(serverPlayer);
+
+                            level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.7f, 1.4f);
+                        }
                     }
+                    // Якщо блок повний — нічого не робимо, досвід не витрачається
                 } else {
-                    // Повідомлення про спрацювання захисту
+                    // Повідомлення про спрацювання захисту (тепер має бути в локалізації)
                     player.displayClientMessage(Component.translatable("message.tacionian.safety_limit").withStyle(ChatFormatting.RED), true);
                     level.playSound(null, pos, net.minecraft.sounds.SoundEvents.NOTE_BLOCK_BASS.get(), SoundSource.BLOCKS, 1.0f, 0.5f);
                 }
@@ -79,4 +88,5 @@ public class TachyonChargerBlock extends BaseEntityBlock {
         }
         return InteractionResult.SUCCESS;
     }
-}
+
+    }

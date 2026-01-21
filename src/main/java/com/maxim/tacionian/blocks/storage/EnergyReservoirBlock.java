@@ -109,11 +109,5 @@ public class EnergyReservoirBlock extends BaseEntityBlock {
         }
     }
 
-    @Override
-    public void appendHoverText(ItemStack stack, @Nullable BlockGetter level, List<Component> tooltip, TooltipFlag flag) {
-        // Блок в інвентарі завжди порожній, тому показуємо лише опис та попередження
-        tooltip.add(Component.translatable("tooltip.tacionian.energy_reservoir.desc").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("tooltip.tacionian.energy_reservoir.unstable_note")
-                .withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.ITALIC));
-    }
+
 }

@@ -53,17 +53,41 @@ public class TachyonChargerBlockEntity extends BlockEntity implements ITachyonSt
     public static void tick(Level level, BlockPos pos, BlockState state, TachyonChargerBlockEntity be) {
         if (level.isClientSide || be.storedEnergy <= 0) return;
 
+        // Проходимо по всіх сторонах блока
         for (Direction dir : Direction.values()) {
             if (be.storedEnergy <= 0) break;
+
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-            if (neighbor != null && !(neighbor instanceof TachyonChargerBlockEntity)) {
-                neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(cap -> {
-                    if (cap.canReceive()) {
-                        int toSendRF = Math.min(be.storedEnergy * 10, 1000);
-                        int acceptedRF = cap.receiveEnergy((int)(toSendRF * be.getEfficiency()), false);
-                        int txToDrain = (int)((acceptedRF / 10) / be.getEfficiency());
-                        be.storedEnergy -= Math.max(0, txToDrain);
+            if (neighbor == null || neighbor instanceof TachyonChargerBlockEntity) continue;
+
+            // КРОК 1: Передача в Тахіонні пристрої (Кабелі, Резервуари)
+            // Шукаємо ModCapabilities.TACHYON_STORAGE
+            neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(txCap -> {
+                if (be.storedEnergy > 0) {
+                    int toPush = Math.min(be.storedEnergy, 100);
+                    int accepted = txCap.receiveTacionEnergy(toPush, false);
+                    if (accepted > 0) {
+                        be.storedEnergy -= accepted;
                         be.setChanged();
+                    }
+                }
+            });
+
+            // КРОК 2: Конвертація в RF енергію (якщо ще щось лишилося)
+            if (be.storedEnergy > 0) {
+                neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite()).ifPresent(rfCap -> {
+                    if (rfCap.canReceive()) {
+                        // Розраховуємо скільки RF ми можемо дати з нашого Tx
+                        int maxRfAvailable = (int)(be.storedEnergy * 10 * be.getEfficiency());
+                        int toSendRF = Math.min(maxRfAvailable, 1000);
+
+                        int acceptedRF = rfCap.receiveEnergy(toSendRF, false);
+                        if (acceptedRF > 0) {
+                            // Вираховуємо скільки Tx ми реально витратили (враховуючи втрати/ефективність)
+                            int txToDrain = (int) Math.ceil((acceptedRF / 10.0) / be.getEfficiency());
+                            be.storedEnergy -= Math.max(0, txToDrain);
+                            be.setChanged();
+                        }
                     }
                 });
             }
