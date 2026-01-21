@@ -31,10 +31,8 @@ public class PlayerEnergyEffects {
 
         if (energy.isOverloaded()) {
 
-            // 1. ШАНС ВИБУХУ (Тільки вище 180% і якщо не захищений)
-            // Замість миттєвої смерті на 150%, даємо шанс вижити
+            // 1. ШАНС ВИБУХУ (180%+)
             if (!isProtected && percent > 180 && energy.isDeadlyOverloadEnabled()) {
-                // Шанс вибуху ~0.5% кожного тіку. В середньому це 10 секунд життя.
                 if (level.random.nextFloat() < 0.005f) {
                     level.explode(null, player.getX(), player.getY(), player.getZ(), 3.0f, false, Level.ExplosionInteraction.NONE);
                     player.hurt(getTachyonDamage(player), Float.MAX_VALUE);
@@ -44,49 +42,53 @@ public class PlayerEnergyEffects {
                 }
             }
 
-            // 2. ЗВУКИ ТА ВІЗУАЛ (Наростають від відсотка)
-            if (player.tickCount % (percent > 150 ? 5 : 20) == 0) {
-                float volume = percent > 150 ? 0.9f : 0.4f;
-                float pitch = 0.5f + (percent / 200f); // Чим більше енергії, тим вищий писк
+            // 2. ЗВУКИ (Прискорюються від відсотка)
+            // Чим ближче до 200%, тим менший інтервал між звуками (мінімум 4 тіки)
+            int soundInterval = Math.max(4, 25 - (percent - 100) / 4);
+            if (player.tickCount % soundInterval == 0) {
+                float volume = percent > 150 ? 1.0f : 0.5f;
+                float pitch = 0.5f + (percent / 150f);
                 level.playSound(null, player.getX(), player.getY(), player.getZ(),
                         ModSounds.TACHYON_HUM.get(), SoundSource.PLAYERS, volume, pitch);
             }
 
-            // 3. НЕГАТИВНІ ЕФЕКТИ (Ступеневі)
+            // 3. ЧАСТКИ (Швидкість розльоту та кількість залежать від відсотка)
+            if (player.tickCount % (percent > 160 ? 2 : 5) == 0) {
+                float speed = (percent - 100) / 50f; // Чим більше енергії, тим швидше розлітаються іскри
+                level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                        player.getX(), player.getY() + 1.2, player.getZ(),
+                        percent > 150 ? 12 : 5, // Більше часток при сильному перевантаженні
+                        0.3, 0.3, 0.3,
+                        speed);
+            }
+
+            // 4. НЕГАТИВНІ ЕФЕКТИ (Твої оригінальні налаштування)
             if (!isProtected) {
-                // Стадія 1: Понад 110% - легке сповільнення
                 if (percent > 110) {
                     player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 0, true, false));
                 }
 
-                // Стадія 2: Понад 140% - вогонь та посилена шкода
                 if (percent > 140) {
-                    if (player.tickCount % 40 == 0) { // Шкода раз на 2 секунди, а не на 1
+                    if (player.tickCount % 40 == 0) {
                         player.setSecondsOnFire(1);
-                        // Полегшена формула шкоди: 1.0 + рівень * 0.05
                         float dmg = 1.0f + (energy.getLevel() * 0.05f);
                         player.hurt(getTachyonDamage(player), dmg);
                     }
-                    // Додаємо нудоту, щоб було важче йти
                     player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 100, 0, true, false));
                 }
 
-                // Стадія 3: Понад 170% - "Тремтіння" (затемнення або слабкість)
                 if (percent > 170) {
                     player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 40, 1, true, false));
-                    if (player.tickCount % 5 == 0) {
-                        level.sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY() + 1, player.getZ(), 10, 0.5, 0.5, 0.5, 0.2);
-                    }
                 }
             }
 
-            // Постійні частинки при перевантаженні
-            if (player.tickCount % 10 == 0) {
-                level.sendParticles(ParticleTypes.SMOKE, player.getX(), player.getY() + 1, player.getZ(), 2, 0.2, 0.2, 0.2, 0.05);
+            // Швидший дим при перевантаженні
+            if (player.tickCount % 8 == 0) {
+                level.sendParticles(ParticleTypes.SMOKE, player.getX(), player.getY() + 1, player.getZ(), 1, 0.1, 0.1, 0.1, 0.05);
             }
         }
 
-        // КРИТИЧНО НИЗЬКИЙ РІВЕНЬ (Більш гуманно)
+        // КРИТИЧНО НИЗЬКИЙ РІВЕНЬ
         if (energy.isCriticalLow() && player.tickCount % 100 == 0) {
             player.hurt(getTachyonDamage(player), 1.0f);
         }

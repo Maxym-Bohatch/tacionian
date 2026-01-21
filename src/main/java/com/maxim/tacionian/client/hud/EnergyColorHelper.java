@@ -9,26 +9,37 @@ public class EnergyColorHelper {
         long time = Minecraft.getInstance().level.getGameTime();
         float partialTick = Minecraft.getInstance().getFrameTime();
         float totalTime = time + partialTick;
-        float ratio = ClientPlayerEnergy.getRatio();
+        float ratio = ClientPlayerEnergy.getRatio(); // 1.0 = 100%
 
-        // 1. Смертельна небезпека (М'яке тривожне блимання)
+        // 1. Смертельна небезпека (Швидке тривожне блимання Червоний/Чорний)
+        if (ratio > 1.8f) {
+            float f = (Mth.sin(totalTime * 0.8f) + 1.0f) * 0.5f;
+            return lerpColor(0xFFFF0000, 0xFF000000, f);
+        }
+
+        // 2. Сильне перевантаження (Помаранчевий/Червоний)
         if (ratio > 1.5f) {
             float f = (Mth.sin(totalTime * 0.4f) + 1.0f) * 0.5f;
-            return lerpColor(0xFFFFA500, 0xFFFF0000, f); // Помаранчевий -> Червоний
+            return lerpColor(0xFFFFA500, 0xFFFF0000, f);
         }
 
-        // 2. Глушилка
+        // 3. Попередження про нестабільність (80%+) - Жовтий колір
+        if (ratio >= 0.8f && ratio <= 1.0f) {
+            return 0xFFFFFF00;
+        }
+
+        // 4. Глушилка
         if (ClientPlayerEnergy.isJammed()) {
-            return (time % 20 < 10) ? 0xFFFFFF00 : 0xFF666600; // Повільніше жовте блимання
+            return (time % 10 < 5) ? 0xFFFFFF00 : 0xFF444400; // Швидше блимання
         }
 
-        // 3. Активна дистанційна передача (Плавне переливання Cyan -> Deep Blue)
+        // Інші стани
         if (ClientPlayerEnergy.isRemoteNoDrain()) {
             float f = (Mth.sin(totalTime * 0.1f) + 1.0f) * 0.5f;
             return lerpColor(0xFF00FFFF, 0xFF0055FF, f);
         }
 
-        if (ClientPlayerEnergy.isOverloaded()) return 0xFFFFA500;
+        if (ClientPlayerEnergy.isOverloaded()) return 0xFFFFA500; // 100%+
         if (ClientPlayerEnergy.isCriticalLow()) return 0xFFFF0000;
         if (ClientPlayerEnergy.isStabilized()) return 0xFF00FF44;
         if (ClientPlayerEnergy.isRemoteStabilized()) return 0xFFA020F0;
