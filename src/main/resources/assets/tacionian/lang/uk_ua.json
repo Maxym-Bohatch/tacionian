@@ -47,10 +47,10 @@
   "message.tacionian.charged": "§aЯдро заряджено: +%s Tx",
   "message.tacionian.discharged": "§cЯдро розряджено: -%s Tx",
 
-  "mode.tacionian.safe": "§aБезпечний",
-  "mode.tacionian.balanced": "§eЗбалансований",
-  "mode.tacionian.performance": "§6Продуктивний",
-  "mode.tacionian.unrestricted": "§4Необмежений",
+  "mode.tacionian.safe": "§aЕкономний (Збереження ядра: 75%)",
+  "mode.tacionian.balanced": "§eПомірний (Збереження ядра: 40%)",
+  "mode.tacionian.performance": "§6Активний (Збереження ядра: 15%)",
+  "mode.tacionian.unrestricted": "§4Агресивний (Викачування до нуля)",
 
   "tooltip.tacionian.active": "§aСТАТУС: АКТИВНО",
   "tooltip.tacionian.inactive": "§cСТАТУС: НЕАКТИВНО",
