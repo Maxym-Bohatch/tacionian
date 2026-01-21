@@ -47,10 +47,10 @@
   "message.tacionian.charged": "§aЯдро заряжено: +%s Tx",
   "message.tacionian.discharged": "§cЯдро разряжено: -%s Tx",
 
-  "mode.tacionian.safe": "§aБезопасный (лимит выхода: 25%)",
-  "mode.tacionian.balanced": "§eСбалансированный (лимит выхода: 50%)",
-  "mode.tacionian.performance": "§6Производительный (лимит выхода: 85%)",
-  "mode.tacionian.unrestricted": "§4Неограниченный (100% мощности)",
+  "mode.tacionian.safe": "§aБезопасный",
+  "mode.tacionian.balanced": "§eСбалансированный",
+  "mode.tacionian.performance": "§6Производительный",
+  "mode.tacionian.unrestricted": "§4Неограниченный",
 
   "tooltip.tacionian.active": "§aСТАТУС: АКТИВНО",
   "tooltip.tacionian.inactive": "§cСТАТУС: НЕАКТИВНО",

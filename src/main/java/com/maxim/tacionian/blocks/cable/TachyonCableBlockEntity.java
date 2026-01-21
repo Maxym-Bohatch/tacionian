@@ -34,7 +34,7 @@ public class TachyonCableBlockEntity extends BlockEntity implements ITachyonStor
         if (be.network != null) {
             be.network.tickMaster(be, level);
 
-            // АКТИВНА ПЕРЕДАЧА: Кабель сам віддає енергію споживачам поруч
+            // АКТИВНА ПЕРЕДАЧА СУСІДАМ
             if (be.network.getEnergy() > 0) {
                 for (Direction dir : Direction.values()) {
                     BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
@@ -48,12 +48,45 @@ public class TachyonCableBlockEntity extends BlockEntity implements ITachyonStor
                 }
             }
 
-            // Оновлення візуального стану (світіння)
-            boolean hasEnergy = be.network.getEnergy() > 0;
-            if (state.getValue(TachyonCableBlock.POWERED) != hasEnergy) {
-                level.setBlock(pos, state.setValue(TachyonCableBlock.POWERED, hasEnergy), 3);
+            // ЛОГІКА СВІТІННЯ (ІДЕАЛЬНА)
+            int targetLight = calculateTargetLight(level, pos, be);
+
+            if (state.getValue(TachyonCableBlock.LIGHT_LEVEL) != targetLight) {
+                level.setBlock(pos, state.setValue(TachyonCableBlock.LIGHT_LEVEL, targetLight)
+                        .setValue(TachyonCableBlock.POWERED, targetLight > 0), 3);
             }
         }
+    }
+
+    private static int calculateTargetLight(Level level, BlockPos pos, TachyonCableBlockEntity be) {
+        // Знаходимо максимальний відсоток заряду (своя мережа або сусіди)
+        double maxPercent = 0;
+
+        // 1. Відсоток власної мережі
+        if (be.network.getCapacity() > 0) {
+            maxPercent = (double) be.network.getEnergy() / be.network.getCapacity();
+        }
+
+        // 2. Відсоток сусідніх баків (щоб світитися, коли бак повний)
+        for (Direction dir : Direction.values()) {
+            BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+            if (neighbor != null && !(neighbor instanceof TachyonCableBlockEntity)) {
+                var cap = neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite());
+                if (cap.isPresent()) {
+                    ITachyonStorage storage = cap.orElse(null);
+                    if (storage != null && storage.getMaxCapacity() > 0) {
+                        double neighborPercent = (double) storage.getEnergy() / storage.getMaxCapacity();
+                        if (neighborPercent > maxPercent) maxPercent = neighborPercent;
+                    }
+                }
+            }
+        }
+
+        // Конвертуємо відсоток у рівень 0-3
+        if (maxPercent <= 0) return 0;
+        if (maxPercent < 0.34) return 1; // 1-33%
+        if (maxPercent < 0.67) return 2; // 34-66%
+        return 3; // 67-100%
     }
 
     public void refreshNetwork() {

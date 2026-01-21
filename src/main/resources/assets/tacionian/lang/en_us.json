@@ -47,10 +47,10 @@
   "message.tacionian.charged": "§aCore charged: +%s Tx",
   "message.tacionian.discharged": "§cCore discharged: -%s Tx",
 
-  "mode.tacionian.safe": "§aSafe (Output Limit: 25%)",
-  "mode.tacionian.balanced": "§eBalanced (Output Limit: 50%)",
-  "mode.tacionian.performance": "§6Performance (Output Limit: 85%)",
-  "mode.tacionian.unrestricted": "§4Unrestricted (100% Power)",
+  "mode.tacionian.safe": "§aSafe",
+  "mode.tacionian.balanced": "§eBalanced",
+  "mode.tacionian.performance": "§6Performance",
+  "mode.tacionian.unrestricted": "§4Unrestricted",
 
   "tooltip.tacionian.active": "§aSTATUS: ACTIVE",
   "tooltip.tacionian.inactive": "§cSTATUS: INACTIVE",

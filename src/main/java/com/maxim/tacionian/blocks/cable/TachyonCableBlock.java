@@ -17,6 +17,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -26,6 +27,7 @@ import java.util.Map;
 
 public class TachyonCableBlock extends Block implements EntityBlock {
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
+    public static final IntegerProperty LIGHT_LEVEL = IntegerProperty.create("light_level", 0, 3);
 
     public static final BooleanProperty NORTH = BlockStateProperties.NORTH;
     public static final BooleanProperty SOUTH = BlockStateProperties.SOUTH;
@@ -45,9 +47,10 @@ public class TachyonCableBlock extends Block implements EntityBlock {
     );
 
     public TachyonCableBlock(Properties props) {
-        super(props.lightLevel(state -> state.getValue(POWERED) ? 8 : 0));
+        super(props.lightLevel(state -> state.getValue(LIGHT_LEVEL) * 4));
         this.registerDefaultState(this.stateDefinition.any()
                 .setValue(POWERED, false)
+                .setValue(LIGHT_LEVEL, 0)
                 .setValue(NORTH, false).setValue(SOUTH, false)
                 .setValue(EAST, false).setValue(WEST, false)
                 .setValue(UP, false).setValue(DOWN, false));
@@ -67,17 +70,18 @@ public class TachyonCableBlock extends Block implements EntityBlock {
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return makeConnections(context.getLevel(), context.getClickedPos(), false);
+        return makeConnections(context.getLevel(), context.getClickedPos(), 0);
     }
 
     @Override
     public BlockState updateShape(BlockState state, Direction dir, BlockState neighborState, LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
-        return makeConnections(level, pos, state.getValue(POWERED));
+        return makeConnections(level, pos, state.getValue(LIGHT_LEVEL));
     }
 
-    private BlockState makeConnections(LevelAccessor level, BlockPos pos, boolean isPowered) {
+    private BlockState makeConnections(LevelAccessor level, BlockPos pos, int light) {
         return this.defaultBlockState()
-                .setValue(POWERED, isPowered)
+                .setValue(LIGHT_LEVEL, light)
+                .setValue(POWERED, light > 0)
                 .setValue(NORTH, canConnectTo(level, pos.north(), Direction.SOUTH))
                 .setValue(SOUTH, canConnectTo(level, pos.south(), Direction.NORTH))
                 .setValue(EAST, canConnectTo(level, pos.east(), Direction.WEST))
@@ -88,28 +92,19 @@ public class TachyonCableBlock extends Block implements EntityBlock {
 
     private boolean canConnectTo(LevelAccessor level, BlockPos neighborPos, Direction side) {
         BlockEntity be = level.getBlockEntity(neighborPos);
-        if (be == null) return false;
-        return be.getCapability(ModCapabilities.TACHYON_STORAGE, side).isPresent();
+        return be != null && be.getCapability(ModCapabilities.TACHYON_STORAGE, side).isPresent();
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(POWERED, NORTH, SOUTH, EAST, WEST, UP, DOWN);
+        builder.add(POWERED, LIGHT_LEVEL, NORTH, SOUTH, EAST, WEST, UP, DOWN);
     }
 
-    @Nullable
-    @Override
-    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new TachyonCableBlockEntity(pos, state);
-    }
+    @Nullable @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new TachyonCableBlockEntity(pos, state); }
 
-    @Nullable
-    @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+    @Nullable @Override public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         return level.isClientSide ? null : (lvl, pos, st, be) -> {
-            if (be instanceof TachyonCableBlockEntity cable) {
-                TachyonCableBlockEntity.tick(lvl, pos, st, cable);
-            }
+            if (be instanceof TachyonCableBlockEntity cable) TachyonCableBlockEntity.tick(lvl, pos, st, cable);
         };
     }
 }

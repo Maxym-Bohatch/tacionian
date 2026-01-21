@@ -18,7 +18,7 @@
   "tooltip.tacionian.safe_charger_item.desc": "§7Заряджає TX/RF предмети. §cАвтовимкнення§7, якщо енергія гравця <15%.",
 
   "block.tacionian.stabilization_plate": "Стабілізаційна плита",
-  "tooltip.tacionian.stabilization_plate.desc": "§7Пасивно поглинає нестабільність. §eShift + Стояти на плиті: §7Швидка розрядка.",
+  "tooltip.tacionian.stabilization_plate.desc": "§7Пасивно поглощає нестабільність. §eShift + Стояти на плиті: §7Швидка розрядка.",
 
   "block.tacionian.energy_reservoir": "Енергетичний резервуар",
   "tooltip.tacionian.energy_reservoir.desc": "§7Сховище великої місткості для тахіонної енергії.",
@@ -47,10 +47,10 @@
   "message.tacionian.charged": "§aЯдро заряджено: +%s Tx",
   "message.tacionian.discharged": "§cЯдро розряджено: -%s Tx",
 
-  "mode.tacionian.safe": "§aБезпечний (ліміт виходу: 25%)",
-  "mode.tacionian.balanced": "§eЗбалансований (ліміт виходу: 50%)",
-  "mode.tacionian.performance": "§6Продуктивний (ліміт виходу: 85%)",
-  "mode.tacionian.unrestricted": "§4Необмежений (100% потужності)",
+  "mode.tacionian.safe": "§aБезпечний",
+  "mode.tacionian.balanced": "§eЗбалансований",
+  "mode.tacionian.performance": "§6Продуктивний",
+  "mode.tacionian.unrestricted": "§4Необмежений",
 
   "tooltip.tacionian.active": "§aСТАТУС: АКТИВНО",
   "tooltip.tacionian.inactive": "§cСТАТУС: НЕАКТИВНО",

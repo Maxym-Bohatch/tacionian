@@ -2,16 +2,17 @@ package com.maxim.tacionian.blocks.wireless;
 
 import com.maxim.tacionian.api.energy.ITachyonStorage;
 import com.maxim.tacionian.api.events.TachyonWasteEvent;
-import com.maxim.tacionian.blocks.storage.EnergyReservoirBlockEntity;
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
 import com.maxim.tacionian.register.ModBlockEntities;
 import com.maxim.tacionian.register.ModCapabilities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -31,11 +32,10 @@ import java.util.List;
 public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements ITachyonStorage {
     private int mode = 0;
     private int storedEnergy = 0;
-    private final int MAX_CAPACITY = 2000; // Трохи збільшимо буфер для плавності
+    private final int MAX_CAPACITY = 2000;
 
-    // Створюємо кастомний холдер, який забороняє вхід енергії зовні
     private final LazyOptional<ITachyonStorage> tachyonHolder = LazyOptional.of(() -> new ITachyonStorage() {
-        @Override public int receiveTacionEnergy(int amount, boolean simulate) { return 0; } // ЗАБОРОНЕНО
+        @Override public int receiveTacionEnergy(int amount, boolean simulate) { return 0; }
         @Override public int extractTacionEnergy(int amount, boolean simulate) { return WirelessEnergyInterfaceBlockEntity.this.extractTacionEnergy(amount, simulate); }
         @Override public int getEnergy() { return storedEnergy; }
         @Override public int getMaxCapacity() { return MAX_CAPACITY; }
@@ -54,14 +54,13 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
         super(ModBlockEntities.WIRELESS_BE.get(), pos, state);
     }
 
-    // Внутрішній метод ТІЛЬКИ для гравця
     public int receiveFromPlayer(int amount, boolean simulate) {
         int toAdd = Math.min(amount, MAX_CAPACITY - storedEnergy);
         if (!simulate && toAdd > 0) { storedEnergy += toAdd; setChanged(); }
         return toAdd;
     }
 
-    @Override public int receiveTacionEnergy(int amount, boolean simulate) { return 0; } // Для інтерфейсу ITachyonStorage
+    @Override public int receiveTacionEnergy(int amount, boolean simulate) { return 0; }
     @Override public int extractTacionEnergy(int amount, boolean simulate) {
         int toTake = Math.min(storedEnergy, amount);
         if (!simulate && toTake > 0) { storedEnergy -= toTake; setChanged(); }
@@ -88,7 +87,6 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
             if (player instanceof ServerPlayer serverPlayer) {
                 serverPlayer.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
                     pEnergy.setRemoteStabilized(true);
-                    pEnergy.setRemoteNoDrain(false);
 
                     if (pEnergy.isOverloaded()) {
                         int extracted = pEnergy.extractEnergyPure(40, false);
@@ -112,34 +110,35 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
         for (Direction dir : Direction.values()) {
             if (be.storedEnergy <= 0) break;
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-
-            // Захист від петель: не передаємо іншим бездротовим інтерфейсам
             if (neighbor == null || neighbor instanceof WirelessEnergyInterfaceBlockEntity) continue;
 
             var tachyonCap = neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite());
-            var rfCap = neighbor.getCapability(net.minecraftforge.common.capabilities.ForgeCapabilities.ENERGY, dir.getOpposite());
+            var rfCap = neighbor.getCapability(ForgeCapabilities.ENERGY, dir.getOpposite());
 
-            // 1. TX -> TX (БЕЗ ДОСВІДУ)
             tachyonCap.ifPresent(cap -> {
                 int toPush = Math.min(be.storedEnergy, 200);
                 int accepted = cap.receiveTacionEnergy(toPush, false);
                 be.extractTacionEnergy(accepted, false);
             });
 
-            // 2. TX -> RF (З ДОСВІДОМ)
             if (be.storedEnergy > 0) {
                 rfCap.ifPresent(cap -> {
                     if (cap.canReceive()) {
-                        int toPushRF = Math.min(be.storedEnergy * 10, 2000); // 1 TX = 10 RF
+                        int toPushRF = Math.min(be.storedEnergy * 10, 2000);
                         int acceptedRF = cap.receiveEnergy(toPushRF, false);
                         int usedTX = acceptedRF / 10;
 
                         if (usedTX > 0) {
                             be.extractTacionEnergy(usedTX, false);
-                            // Досвід нараховується тільки тут
-                            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e ->
-                                    e.addExperience(usedTX * 0.15f, player)
-                            );
+                            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(e -> {
+                                e.addExperience(usedTX * 0.15f, player);
+
+                                // ВІЗУАЛ ПЕРЕДАЧІ
+                                if (level.getGameTime() % 5 == 0) {
+                                    ((ServerLevel)level).sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY() + 1, player.getZ(), 2, 0.1, 0.1, 0.1, 0.05);
+                                    ((ServerLevel)level).sendParticles(ParticleTypes.PORTAL, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 3, 0.1, 0.1, 0.1, 0.05);
+                                }
+                            });
                         }
                     }
                 });
