@@ -53,11 +53,13 @@ public class TachyonChargerBlock extends BaseEntityBlock {
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof TachyonChargerBlockEntity charger) {
 
+            // 1. Викачування назад (Shift + ПКМ)
             if (player.isShiftKeyDown()) {
                 charger.handlePlayerExtraction(serverPlayer);
                 return InteractionResult.SUCCESS;
             }
 
+            // 2. Логіка заряджання блоку енергією гравця
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
                 // ПЕРЕВІРКА ЛІМІТУ: 15% для безпечного, 0% для звичайного
                 int minLimit = isSafe ? (int)(pEnergy.getMaxEnergy() * 0.15f) : 0;
@@ -76,13 +78,23 @@ public class TachyonChargerBlock extends BaseEntityBlock {
                             pEnergy.sync(serverPlayer);
 
                             level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.7f, 1.4f);
+
+                            // Виводимо прогрес: скільки зараз Tx в блоці
+                            player.displayClientMessage(Component.literal("§eЗаряджання: §f" + charger.getEnergy() + " §7/ §f" + charger.getMaxCapacity() + " Tx"), true);
                         }
+                    } else {
+                        // Блок вже повний - просто показуємо статус
+                        player.displayClientMessage(Component.literal("§bЗаряд повний: §f" + charger.getEnergy() + " Tx"), true);
                     }
                 } else {
+                    // Якщо енергії замало для зарядки блоку (безпека)
                     player.displayClientMessage(Component.translatable("message.tacionian.safety_limit").withStyle(ChatFormatting.RED), true);
                     level.playSound(null, pos, net.minecraft.sounds.SoundEvents.NOTE_BLOCK_BASS.get(), SoundSource.BLOCKS, 1.0f, 0.5f);
                 }
             });
+
+            // Повертаємо CONSUME, щоб можна було затиснути ПКМ і зарядка йшла безперервно
+            return InteractionResult.CONSUME;
         }
         return InteractionResult.SUCCESS;
     }

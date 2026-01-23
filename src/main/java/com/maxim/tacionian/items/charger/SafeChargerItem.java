@@ -29,7 +29,7 @@ public class SafeChargerItem extends Item {
         if (!level.isClientSide) {
             boolean active = !stack.getOrCreateTag().getBoolean("Active");
             stack.getOrCreateTag().putBoolean("Active", active);
-            player.displayClientMessage(Component.translatable(active ? "tooltip.tacionian.active" : "tooltip.tacionian.inactive"), true);
+            player.displayClientMessage(Component.translatable(active ? "status.tacionian.active" : "status.tacionian.disabled"), true);
         }
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
     }
@@ -39,54 +39,72 @@ public class SafeChargerItem extends Item {
         if (level.isClientSide || !(entity instanceof ServerPlayer serverPlayer)) return;
         if (!stack.getOrCreateTag().getBoolean("Active")) return;
 
+        // Перевірка кожні 5 тіків для економії ресурсів
         if (level.getGameTime() % 5 == 0) {
             serverPlayer.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
+                // Безпечний поріг: 15% від максимуму
                 int minEnergy = (int) (pEnergy.getMaxEnergy() * 0.15f);
-                // Використовуємо масив, щоб Java дозволила змінювати значення всередині лямбда-виразів
-                final int[] availableTx = { pEnergy.getEnergy() - minEnergy };
+                int currentEnergy = pEnergy.getEnergy();
 
-                if (availableTx[0] <= 0) return;
+                if (currentEnergy <= minEnergy) return;
 
+                // Використовуємо масив для можливості модифікації всередині лямбди
+                final int[] availableToTake = { currentEnergy - minEnergy };
                 boolean changed = false;
+
                 for (ItemStack target : serverPlayer.getInventory().items) {
                     if (target.isEmpty() || target == stack) continue;
+                    if (availableToTake[0] <= 0) break;
 
-                    // 1. Пріоритет: Tachyon (Твій мод)
-                    var txCap = target.getCapability(ModCapabilities.TACHYON_STORAGE);
-                    if (txCap.isPresent()) {
-                        int taken = txCap.map(cap -> {
+                    // 1. Пріоритет: Tachyon Energy
+                    var txCapOpt = target.getCapability(ModCapabilities.TACHYON_STORAGE);
+                    if (txCapOpt.isPresent()) {
+                        int txAdded = txCapOpt.map(cap -> {
                             int needed = cap.getMaxCapacity() - cap.getEnergy();
-                            int toGive = Math.min(availableTx[0], Math.min(needed, 50));
-                            int extracted = pEnergy.extractEnergyWithExp(toGive, false, serverPlayer);
-                            return cap.receiveTacionEnergy(extracted, false);
-                        }).orElse(0);
+                            if (needed <= 0) return 0;
 
-                        if (taken > 0) {
-                            changed = true;
-                            availableTx[0] -= taken;
-                            if (availableTx[0] <= 0) break;
-                            continue;
-                        }
-                    }
+                            int toGive = Math.min(availableToTake[0], Math.min(needed, 50));
+                            int extracted = pEnergy.extractEnergyPure(toGive, false);
 
-                    // 2. RF Енергія (Інші моди)
-                    var rfCap = target.getCapability(ForgeCapabilities.ENERGY);
-                    if (rfCap.isPresent()) {
-                        int taken = rfCap.map(cap -> {
-                            if (!cap.canReceive()) return 0;
-                            int neededRF = Math.min(cap.receiveEnergy(500, true), availableTx[0] * 10);
-                            if (neededRF > 0) {
-                                int txToTake = (neededRF + 9) / 10;
-                                int extracted = pEnergy.extractEnergyWithExp(txToTake, false, serverPlayer);
-                                return cap.receiveEnergy(extracted * 10, false);
+                            if (extracted > 0) {
+                                pEnergy.addExperience(extracted * 0.12f, serverPlayer);
+                                return cap.receiveTacionEnergy(extracted, false);
                             }
                             return 0;
                         }).orElse(0);
 
-                        if (taken > 0) {
+                        if (txAdded > 0) {
                             changed = true;
-                            availableTx[0] -= (taken / 10);
-                            if (availableTx[0] <= 0) break;
+                            availableToTake[0] -= txAdded;
+                            continue;
+                        }
+                    }
+
+                    // 2. Другорядне: RF Energy
+                    var rfCapOpt = target.getCapability(ForgeCapabilities.ENERGY);
+                    if (rfCapOpt.isPresent()) {
+                        int rfAdded = rfCapOpt.map(cap -> {
+                            if (!cap.canReceive()) return 0;
+
+                            int maxRF = 500; // Еквівалент 50 Tx
+                            int canAcceptRF = cap.receiveEnergy(maxRF, true);
+
+                            if (canAcceptRF > 0) {
+                                int txNeeded = (int) Math.ceil(canAcceptRF / 10.0);
+                                int toGive = Math.min(availableToTake[0], Math.min(txNeeded, 50));
+
+                                int extracted = pEnergy.extractEnergyPure(toGive, false);
+                                if (extracted > 0) {
+                                    pEnergy.addExperience(extracted * 0.18f, serverPlayer);
+                                    return cap.receiveEnergy(extracted * 10, false);
+                                }
+                            }
+                            return 0;
+                        }).orElse(0);
+
+                        if (rfAdded > 0) {
+                            changed = true;
+                            availableToTake[0] -= (rfAdded / 10);
                         }
                     }
                 }
@@ -103,14 +121,19 @@ public class SafeChargerItem extends Item {
         }
     }
 
-    @Override public boolean isFoil(ItemStack stack) { return stack.getOrCreateTag().getBoolean("Active"); }
+    @Override
+    public boolean isFoil(ItemStack stack) {
+        return stack.getOrCreateTag().getBoolean("Active");
+    }
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         boolean active = stack.getOrCreateTag().getBoolean("Active");
         tooltip.add(Component.translatable("item.tacionian.safe_charger_item").withStyle(ChatFormatting.GOLD));
         tooltip.add(Component.translatable("tooltip.tacionian.safe_charger_item.desc").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable(active ? "tooltip.tacionian.active" : "tooltip.tacionian.inactive")
+
+        String statusKey = active ? "status.tacionian.active" : "status.tacionian.disabled";
+        tooltip.add(Component.translatable(statusKey)
                 .withStyle(active ? ChatFormatting.GREEN : ChatFormatting.RED));
     }
 }

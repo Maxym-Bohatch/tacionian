@@ -21,24 +21,24 @@ public class PlayerEnergy {
     private int customColor = -1;
 
     private int stabilizedTimer = 0;
-    private int remoteStabilizedTimer = 0;
+    private int interfaceStabilizedTimer = 0;
+    private int plateStabilizedTimer = 0;
     private int remoteNoDrainTimer = 0;
 
-    private float capacityMultiplier = 1.0f;
-    private float regenMultiplier = 1.0f;
-    private int flatCapacityBonus = 0;
-    private boolean connectionBlocked = false;
-    private boolean permanentJam = false;
+    private boolean disconnected = false;
+    private boolean regenBlocked = false;
 
-    // --- СЕТЕРИ (Повернено все для EnergyCommand та інших) ---
     public void setEnergy(int amount) { this.energy = Math.max(0, amount); }
     public void setLevel(int level) { this.level = Math.min(Math.max(1, level), TacionianConfig.MAX_LEVEL.get()); }
     public void setExperience(int experience) { this.experience = Math.max(0, experience); }
     public void setFractionalExperience(float f) { this.fractionalExperience = f; }
-    public void setPermanentJam(boolean enabled) { this.permanentJam = enabled; }
     public void setCustomColor(int color) { this.customColor = color; }
 
-    // --- ГЕТЕРИ (Повернено getEnergyPercent для StabilizationPlateBlock) ---
+    public void setDisconnected(boolean state) { this.disconnected = state; }
+    public boolean isDisconnected() { return disconnected; }
+    public void setRegenBlocked(boolean state) { this.regenBlocked = state; }
+    public boolean isRegenBlocked() { return regenBlocked; }
+
     public int getEnergy() { return energy; }
     public int getLevel() { return level; }
     public int getExperience() { return experience; }
@@ -46,22 +46,20 @@ public class PlayerEnergy {
     public int getEnergyPercent() { return (int)(getEnergyFraction() * 100); }
 
     public int getMaxEnergy() {
-        int base = 1000 + (level - 1) * TacionianConfig.ENERGY_PER_LEVEL.get();
-        return (int) ((base + flatCapacityBonus) * capacityMultiplier);
+        return 1000 + (level - 1) * TacionianConfig.ENERGY_PER_LEVEL.get();
     }
 
     public int getRequiredExp() { return level < 20 ? 500 + (level * 100) : 2500 + (level * 250); }
-    public int getRegenRate() { return (int) (TacionianConfig.BASE_REGEN.get() * regenMultiplier + (level * 2.0)); }
+    public int getRegenRate() { return (int) (TacionianConfig.BASE_REGEN.get() + (level * 2.0)); }
     public float getEnergyFraction() { return getMaxEnergy() > 0 ? (float) energy / getMaxEnergy() : 0; }
 
-    // --- СТАН (Статуси) ---
-    public boolean isOverloaded() {float threshold = (this.level <= 5) ? 0.95f : 0.8f;
-        return getEnergyFraction() >= threshold;}
-    public boolean isCriticalOverload() { return getEnergyFraction() >= 0.95f; }
+    public boolean isOverloaded() {
+        // Поріг 90%, щоб HUD не вібрував при Safe-режимі (75%)
+        float threshold = (this.level <= TacionianConfig.NOVICE_LEVEL_THRESHOLD.get()) ? 0.95f : 0.90f;
+        return getEnergyFraction() >= threshold;
+    }
     public boolean isCriticalLow() { return getEnergyFraction() < 0.05f; }
-    public boolean isConnectionBlocked() { return connectionBlocked || permanentJam; }
 
-    // --- ЛОГІКА ЕНЕРГІЇ (Повернено extractEnergyWithExp для зарядних пристроїв) ---
     public int receiveEnergyPure(int amount, boolean simulate) {
         int space = Math.max(0, getMaxEnergy() - this.energy);
         int toAdd = Math.min(amount, space);
@@ -72,15 +70,6 @@ public class PlayerEnergy {
     public int extractEnergyPure(int amount, boolean simulate) {
         int toExt = Math.min(amount, this.energy);
         if (!simulate) this.energy -= toExt;
-        return toExt;
-    }
-
-    public int extractEnergyWithExp(int amount, boolean simulate, ServerPlayer player) {
-        int toExt = Math.min(amount, this.energy);
-        if (!simulate && toExt > 0) {
-            this.energy -= toExt;
-            addExperience(toExt * TacionianConfig.EXP_MULTIPLIER.get().floatValue(), player);
-        }
         return toExt;
     }
 
@@ -100,7 +89,6 @@ public class PlayerEnergy {
         }
     }
 
-    // --- ТІК ТА СИНХРОНІЗАЦІЯ ---
     public void sync(ServerPlayer player) {
         if (player != null && !player.level().isClientSide) {
             NetworkHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new EnergySyncPacket(this));
@@ -111,20 +99,18 @@ public class PlayerEnergy {
         if (player.level().isClientSide) return;
         ServerPlayer serverPlayer = (ServerPlayer) player;
 
-        this.capacityMultiplier = 1.0f;
-        this.regenMultiplier = 1.0f;
-        this.flatCapacityBonus = 0;
-        this.connectionBlocked = false;
-        this.customColor = -1;
-
         MinecraftForge.EVENT_BUS.post(new TachyonEnergyUpdateEvent(player, this));
 
         if (stabilizedTimer > 0) stabilizedTimer--;
-        if (remoteStabilizedTimer > 0) remoteStabilizedTimer--;
-        if (remoteNoDrainTimer > 0) remoteNoDrainTimer--;
+        if (interfaceStabilizedTimer > 0) interfaceStabilizedTimer--;
+        if (plateStabilizedTimer > 0) plateStabilizedTimer--;
 
-        if (getEnergy() >= getMaxEnergy()) {
-            if (!isStabilized() && !isRemoteStabilized()) {
+        boolean wasRemoteActive = remoteNoDrainTimer > 0;
+        if (remoteNoDrainTimer > 0) remoteNoDrainTimer--;
+        if (wasRemoteActive && remoteNoDrainTimer <= 0) this.sync(serverPlayer);
+
+        if (getEnergy() >= getMaxEnergy() && !player.isCreative()) {
+            if (!isStabilized() && !isInterfaceStabilized() && !isPlateStabilized()) {
                 player.level().explode(null, player.getX(), player.getY(), player.getZ(), 5.0f, true, Level.ExplosionInteraction.BLOCK);
                 player.hurt(player.damageSources().generic(), Float.MAX_VALUE);
                 this.energy = 0;
@@ -133,35 +119,48 @@ public class PlayerEnergy {
             }
         }
 
-        if (!permanentJam && !isRemoteNoDrain() && player.tickCount % 20 == 0) {
-            int regenTarget = (this.level < 5) ? (int)(getMaxEnergy() * 0.9f) : getMaxEnergy();
-            if (this.energy < regenTarget) {
-                receiveEnergyPure(getRegenRate(), false);
-                this.sync(serverPlayer);
+        // --- ЛОГІКА РЕГЕНЕРАЦІЇ ---
+        if (player.tickCount % 20 == 0) {
+            int regenTarget = (this.level < TacionianConfig.NOVICE_LEVEL_THRESHOLD.get()) ? (int)(getMaxEnergy() * 0.9f) : getMaxEnergy();
+
+            if (!regenBlocked && this.energy < regenTarget) {
+                // Якщо стабілізатор активний, дозволяємо реген ТІЛЬКИ до 15% (мінімум виживання)
+                // Це не дає йому штовхати енергію до 720+ при активованих режимах 40% чи 75%
+                if (remoteNoDrainTimer <= 0 || this.energy < (getMaxEnergy() * 0.15f)) {
+                    receiveEnergyPure(getRegenRate(), false);
+                    this.sync(serverPlayer);
+                }
             }
         }
-
-        PlayerEnergyEffects.apply(serverPlayer, this);
     }
 
-    // --- ТАЙМЕРИ ТА NBT ---
     public void setStabilized(boolean v) { if (v) this.stabilizedTimer = 20; }
     public boolean isStabilized() { return stabilizedTimer > 0; }
-    public void setRemoteStabilized(boolean v) { if (v) this.remoteStabilizedTimer = 20; }
-    public boolean isRemoteStabilized() { return remoteStabilizedTimer > 0; }
-    public void setRemoteNoDrain(boolean v) { if (v) this.remoteNoDrainTimer = 20; }
-    public boolean isRemoteNoDrain() { return remoteNoDrainTimer > 0; }
+    public void setInterfaceStabilized(boolean v) { if (v) this.interfaceStabilizedTimer = 20; }
+    public boolean isInterfaceStabilized() { return interfaceStabilizedTimer > 0; }
+    public void setPlateStabilized(boolean v) { if (v) this.plateStabilizedTimer = 20; }
+    public boolean isPlateStabilized() { return plateStabilizedTimer > 0; }
+    public void setRemoteNoDrain(boolean v) { if (v) this.remoteNoDrainTimer = 15; }
+    public boolean isRemoteNoDrain() {return this.remoteNoDrainTimer > 0;}
 
     public void saveNBTData(CompoundTag nbt) {
-        nbt.putInt("energy", energy); nbt.putInt("level", level);
-        nbt.putInt("exp", experience); nbt.putBoolean("jammed", permanentJam);
+        nbt.putInt("energy", energy);
+        nbt.putInt("level", level);
+        nbt.putInt("exp", experience);
+        nbt.putFloat("fractionalExp", fractionalExperience);
+        nbt.putInt("customColor", customColor);
+        nbt.putBoolean("disconnected", disconnected);
+        nbt.putBoolean("regenBlocked", regenBlocked);
     }
 
     public void loadNBTData(CompoundTag nbt) {
         this.energy = nbt.getInt("energy");
         this.level = Math.max(1, nbt.getInt("level"));
         this.experience = nbt.getInt("exp");
-        this.permanentJam = nbt.getBoolean("jammed");
+        this.fractionalExperience = nbt.getFloat("fractionalExp");
+        this.customColor = nbt.contains("customColor") ? nbt.getInt("customColor") : -1;
+        this.disconnected = nbt.getBoolean("disconnected");
+        this.regenBlocked = nbt.getBoolean("regenBlocked");
     }
 
     public static class TachyonEnergyUpdateEvent extends Event {

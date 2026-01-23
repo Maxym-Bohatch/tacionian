@@ -3,12 +3,13 @@ package com.maxim.tacionian.items.energy;
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
 import com.maxim.tacionian.register.ModSounds;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -17,11 +18,28 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
-
 import java.util.List;
+import net.minecraft.world.entity.Entity;
 
 public class EnergyStabilizerItem extends Item {
     public EnergyStabilizerItem(Properties props) { super(props.stacksTo(1)); }
+
+    @Override
+    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
+        if (!level.isClientSide && entity instanceof ServerPlayer player) {
+            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
+                int mode = stack.getOrCreateTag().getInt("Mode");
+                int threshold = (pEnergy.getMaxEnergy() * getThresholdForMode(mode)) / 100;
+
+                // Блокуємо реген, тільки якщо енергія ВИЩЕ або ДОРІВНЮЄ порогу режиму
+                if (pEnergy.getEnergy() >= threshold) {
+                    pEnergy.setRemoteNoDrain(true);
+                }
+
+                if (level.getGameTime() % 10 == 0) pEnergy.sync(player);
+            });
+        }
+    }
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
@@ -29,7 +47,6 @@ public class EnergyStabilizerItem extends Item {
         if (player.isShiftKeyDown()) {
             int mode = (stack.getOrCreateTag().getInt("Mode") + 1) % 4;
             stack.getOrCreateTag().putInt("Mode", mode);
-            // ВЛАСНИЙ ЗВУК: Перемикання режиму
             level.playSound(null, player.blockPosition(), ModSounds.MODE_SWITCH.get(), SoundSource.PLAYERS, 0.5f, 0.8f + (mode * 0.2f));
             if (!level.isClientSide) {
                 player.displayClientMessage(Component.translatable("message.tacionian.mode_switched", getModeName(mode)), true);
@@ -45,20 +62,31 @@ public class EnergyStabilizerItem extends Item {
         if (!level.isClientSide && entity instanceof ServerPlayer player) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
                 int mode = stack.getOrCreateTag().getInt("Mode");
-                int threshold = getThresholdForMode(mode);
+                int thresholdValue = (pEnergy.getMaxEnergy() * getThresholdForMode(mode)) / 100;
 
-                if (pEnergy.getEnergyPercent() > threshold) {
-                    int extracted = pEnergy.extractEnergyPure(50, false);
-                    if (extracted > 0) {
-                        // ВЛАСНИЙ ЗВУК: Гудіння при скиданні енергії
-                        if (count % 10 == 0) {
-                            level.playSound(null, player.getX(), player.getY(), player.getZ(), ModSounds.TACHYON_HUM.get(), SoundSource.PLAYERS, 0.2f, 1.5f);
-                        }
-                        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
-                                new com.maxim.tacionian.api.events.TachyonWasteEvent(level, player.blockPosition(), extracted)
-                        );
+                if (pEnergy.getEnergy() > thresholdValue && player.tickCount % 10 == 0) {
+                    player.getActiveEffects().stream()
+                            .filter(e -> !e.getEffect().isBeneficial())
+                            .findFirst()
+                            .ifPresent(effect -> {
+                                player.removeEffect(effect.getEffect());
+                                pEnergy.extractEnergyPure(50, false);
+                                level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                                        net.minecraft.sounds.SoundEvents.ZOMBIE_VILLAGER_CURE, SoundSource.PLAYERS, 0.5f, 2.0f);
+                            });
+                }
+
+                if (pEnergy.getEnergy() > thresholdValue) {
+                    int excess = pEnergy.getEnergy() - thresholdValue;
+                    int toDrain = Math.min(excess, 30);
+                    pEnergy.extractEnergyPure(toDrain, false);
+                    pEnergy.setRemoteNoDrain(true);
+
+                    if (count % 5 == 0) {
+                        ((ServerLevel)level).sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY() + 1.2, player.getZ(), 2, 0.1, 0.1, 0.1, 0.02);
+                        level.playSound(null, player.getX(), player.getY(), player.getZ(), ModSounds.TACHYON_HUM.get(), SoundSource.PLAYERS, 0.15f, 1.5f);
                     }
-                    if (count % 5 == 0) pEnergy.sync(player);
+                    pEnergy.sync(player);
                 }
             });
         }
@@ -70,19 +98,18 @@ public class EnergyStabilizerItem extends Item {
 
     private Component getModeName(int mode) {
         return switch (mode) {
-            case 0 -> Component.translatable("mode.tacionian.safe");
-            case 1 -> Component.translatable("mode.tacionian.balanced");
-            case 2 -> Component.translatable("mode.tacionian.performance");
-            default -> Component.translatable("mode.tacionian.unrestricted");
+            case 0 -> Component.translatable("mode.tacionian.safe").withStyle(ChatFormatting.GREEN);
+            case 1 -> Component.translatable("mode.tacionian.balanced").withStyle(ChatFormatting.YELLOW);
+            case 2 -> Component.translatable("mode.tacionian.performance").withStyle(ChatFormatting.GOLD);
+            default -> Component.translatable("mode.tacionian.unrestricted").withStyle(ChatFormatting.RED);
         };
     }
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
-        int mode = stack.getOrCreateTag().getInt("Mode");
+        int mode = stack.hasTag() ? stack.getTag().getInt("Mode") : 0;
         tooltip.add(Component.translatable("tooltip.tacionian.energy_stabilizer.desc").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("tooltip.tacionian.energy_stabilizer.mode").append(getModeName(mode)).withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.translatable("tooltip.tacionian.energy_stabilizer.use_info").withStyle(ChatFormatting.YELLOW));
+        tooltip.add(Component.translatable("tooltip.tacionian.energy_stabilizer.mode").append(": ").append(getModeName(mode)));
     }
 
     @Override public int getUseDuration(ItemStack s) { return 72000; }

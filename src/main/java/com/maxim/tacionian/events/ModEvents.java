@@ -45,7 +45,8 @@ public class ModEvents {
                 // ВИПРАВЛЕННЯ СМЕРТЕЛЬНОЇ ПЕТЛІ: Якщо це смерть, скидаємо енергію на 0
                 if (event.isWasDeath()) {
                     newStore.setEnergy(0);
-                    newStore.setRemoteStabilized(false);
+                    newStore.setInterfaceStabilized(false);
+                    newStore.setPlateStabilized(false);
                 }
             });
         });

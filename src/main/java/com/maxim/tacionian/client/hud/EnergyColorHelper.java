@@ -6,43 +6,42 @@ import net.minecraft.util.Mth;
 
 public class EnergyColorHelper {
     public static int getColor() {
+        if (!ClientPlayerEnergy.hasData()) return 0xFF00FFFF;
+
+        float ratio = ClientPlayerEnergy.getRatio();
         long time = Minecraft.getInstance().level.getGameTime();
         float totalTime = time + Minecraft.getInstance().getFrameTime();
 
-        if (ClientPlayerEnergy.isCriticalOverload()) {
+        // Блимання при перевантаженні без захисту
+        if (ratio > 0.98f && !isAnyProtection()) {
             float pulse = (Mth.sin(totalTime * 1.5f) + 1.0f) * 0.5f;
-            return lerpColor(0xFF00FBFF, 0xFFFFFFFF, pulse);
+            return lerpColor(0xFFFF0000, 0xFFFFFFFF, pulse);
         }
 
-        if (ClientPlayerEnergy.getCustomColor() != -1) {
-            return ClientPlayerEnergy.getCustomColor();
-        }
+        if (ClientPlayerEnergy.isRemoteNoDrain()) return 0xFF00FF44; // Зелений (Стабілізатор)
+        if (ClientPlayerEnergy.isInterfaceStabilized()) return 0xFFA020F0; // Фіолетовий
+        if (ClientPlayerEnergy.isPlateStabilized()) return 0xFF00FBFF; // Блакитний
 
-        if (ClientPlayerEnergy.isRemoteStabilized() || ClientPlayerEnergy.isRemoteNoDrain()) {
-            return 0xFFA020F0; // Фіолетовий
-        }
+        if (ratio > 0.85f) return 0xFFFFFF00; // Жовтий
+        return 0xFF00FFFF; // Стандарт
+    }
 
-        if (ClientPlayerEnergy.isStabilized()) return 0xFF00FF44; // Зелений
-        if (ClientPlayerEnergy.isOverloaded()) return 0xFFFFFF00; // Жовтий
-        if (ClientPlayerEnergy.isJammed()) return 0xFFFF0000;
-        if (ClientPlayerEnergy.isCriticalLow()) return 0xFF550000;
-
-        return 0xFF00FFFF; // Блакитний
+    private static boolean isAnyProtection() {
+        return ClientPlayerEnergy.isRemoteNoDrain() || ClientPlayerEnergy.isInterfaceStabilized() || ClientPlayerEnergy.isPlateStabilized();
     }
 
     public static float getShakeAmplitude() {
         float ratio = ClientPlayerEnergy.getRatio();
+        if (ratio < 0.8f || isAnyProtection()) return 0f;
+        return (ratio - 0.8f) * 20.0f;
+    }
 
-        // Визначаємо поріг тряски: 96% для новачків, 80% для профі
-        float threshold = (ClientPlayerEnergy.getLevel() <= 5) ? 0.96f : 0.8f;
-
-        // Якщо енергія нижче порогу АБО діє стабілізація — тряски НЕМАЄ
-        if (ratio < threshold || ClientPlayerEnergy.isStabilized() || ClientPlayerEnergy.isRemoteStabilized()) {
-            return 0f;
-        }
-
-        // Розрахунок сили тряски (починається плавно від порогу)
-        return (ratio - threshold) * 25.0f;
+    public static int darkenColor(int color, float factor) {
+        int a = (color >> 24) & 0xFF;
+        int r = (int)(((color >> 16) & 0xFF) * factor);
+        int g = (int)(((color >> 8) & 0xFF) * factor);
+        int b = (int)((color & 0xFF) * factor);
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
     private static int lerpColor(int c1, int c2, float t) {

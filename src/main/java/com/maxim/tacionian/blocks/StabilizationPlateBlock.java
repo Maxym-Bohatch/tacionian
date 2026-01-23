@@ -44,7 +44,7 @@ public class StabilizationPlateBlock extends BaseEntityBlock {
             if (!(be instanceof StabilizationPlateBlockEntity plateBE)) return;
 
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                energy.setRemoteStabilized(true);
+                energy.setPlateStabilized(true);
 
                 // Активне скидання: якщо енергія > 90% АБО гравець присів
                 boolean isHighEnergy = energy.getEnergyPercent() > 90;

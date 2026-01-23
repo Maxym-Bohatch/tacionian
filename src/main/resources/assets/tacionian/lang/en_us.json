@@ -48,6 +48,7 @@
   "message.tacionian.charged": "§aCore charged: +%s Tx",
   "message.tacionian.discharged": "§cCore discharged: -%s Tx",
   "message.tacionian.safety_limit": "Safety system: critically low tachyon energy level!",
+
   "mode.tacionian.safe": "§aEco Mode (Keep Core at 75%)",
   "mode.tacionian.balanced": "§eBalanced (Keep Core at 40%)",
   "mode.tacionian.performance": "§6High Discharge (Keep Core at 15%)",
@@ -57,9 +58,19 @@
   "hud.tacionian.energy_unit": "Tx",
   "tooltip.tacionian.active": "§aSTATUS: ACTIVE",
   "tooltip.tacionian.inactive": "§cSTATUS: INACTIVE",
-  "tooltip.tacionian.level": "Core Lvl",
   "death.attack.tacionian.energy": "%1$s's core has imploded due to energy overload",
-  "subtitles.tacionian.energy_charge": "Tachyon energy surges",
-  "subtitles.tacionian.mode_switch": "Device clicks",
-  "subtitles.tacionian.tachyon_hum": "Tachyon core hums"
+
+  "status.tacionian.active": "§aACTIVE§r",
+  "status.tacionian.disabled": "§6DISABLED§r",
+  "status.tacionian.blocked": "§cBLOCKED§r",
+
+  "command.tacionian.energy.set.success": "§b[Tacionian] §7Energy set to §f%1$s Tx §7for %2$s players",
+  "command.tacionian.energy.add.success": "§b[Tacionian] §7Added §f%1$s Tx §7to %2$s players",
+  "command.tacionian.energy.remove.success": "§b[Tacionian] §7Removed §f%1$s Tx §7from %2$s players",
+  "command.tacionian.network.success": "§b[Tacionian] §7Network status: %s",
+  "command.tacionian.regen.success": "§b[Tacionian] §7Core regeneration: %s",
+  "command.tacionian.reset.success": "§b[Tacionian] §7All stats and states have been factory reset.",
+  "subtitles.tacionian.tachyon_hum": "Tachyon humming",
+  "subtitles.tacionian.mode_switch": "Mode switched",
+  "subtitles.tacionian.energy_boom": "Tachyon explosion"
 }

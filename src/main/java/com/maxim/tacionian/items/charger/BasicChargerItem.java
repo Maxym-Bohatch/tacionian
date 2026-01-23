@@ -25,9 +25,8 @@ public class BasicChargerItem extends Item {
         if (level.isClientSide || !(entity instanceof ServerPlayer serverPlayer)) return;
 
         serverPlayer.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
-            // Використовуємо масив для стабільності, хоча тут це не обов'язково
-            final int[] availableTx = { pEnergy.getEnergy() };
-            if (availableTx[0] <= 0) return;
+            int availableTx = pEnergy.getEnergy();
+            if (availableTx <= 0) return;
 
             boolean changed = false;
             for (ItemStack target : serverPlayer.getInventory().items) {
@@ -38,37 +37,52 @@ public class BasicChargerItem extends Item {
                 if (txCapOpt.isPresent()) {
                     int taken = txCapOpt.map(cap -> {
                         int needed = cap.getMaxCapacity() - cap.getEnergy();
-                        int toGive = Math.min(availableTx[0], Math.min(needed, 10)); // 10 Tx за тік
-                        int extracted = pEnergy.extractEnergyWithExp(toGive, false, serverPlayer);
-                        return cap.receiveTacionEnergy(extracted, false);
-                    }).orElse(0);
+                        // 10 Tx за тік - базова швидкість для Basic Charger
+                        int toGive = Math.min(pEnergy.getEnergy(), Math.min(needed, 10));
 
-                    if (taken > 0) {
-                        changed = true;
-                        availableTx[0] -= taken;
-                        if (availableTx[0] <= 0) break;
-                        continue;
-                    }
-                }
-
-                // 2. Другорядне: RF (Інші моди)
-                var rfCapOpt = target.getCapability(ForgeCapabilities.ENERGY);
-                if (rfCapOpt.isPresent()) {
-                    int taken = rfCapOpt.map(cap -> {
-                        if (!cap.canReceive()) return 0;
-                        int neededRF = Math.min(cap.receiveEnergy(100, true), availableTx[0] * 10);
-                        if (neededRF > 0) {
-                            int txToTake = (neededRF + 9) / 10;
-                            int extracted = pEnergy.extractEnergyWithExp(txToTake, false, serverPlayer);
-                            return cap.receiveEnergy(extracted * 10, false);
+                        int extracted = pEnergy.extractEnergyPure(toGive, false);
+                        if (extracted > 0) {
+                            pEnergy.addExperience(extracted * 0.1f, serverPlayer);
+                            return cap.receiveTacionEnergy(extracted, false);
                         }
                         return 0;
                     }).orElse(0);
 
                     if (taken > 0) {
                         changed = true;
-                        availableTx[0] -= (taken / 10);
-                        if (availableTx[0] <= 0) break;
+                        if (pEnergy.getEnergy() <= 0) break;
+                        continue; // Переходимо до наступного предмета
+                    }
+                }
+
+                // 2. Другорядне: RF (Енергія інших модів)
+                var rfCapOpt = target.getCapability(ForgeCapabilities.ENERGY);
+                if (rfCapOpt.isPresent()) {
+                    int txTaken = rfCapOpt.map(cap -> {
+                        if (!cap.canReceive()) return 0;
+
+                        // Розраховуємо скільки RF ми можемо дати (100 RF = 10 Tx)
+                        int maxRFToGive = 100;
+                        int canAcceptRF = cap.receiveEnergy(maxRFToGive, true);
+
+                        if (canAcceptRF > 0) {
+                            // Переводимо RF в необхідні Tx (округлення вгору)
+                            int txNeeded = (int) Math.ceil(canAcceptRF / 10.0);
+                            int toGive = Math.min(pEnergy.getEnergy(), Math.min(txNeeded, 10));
+
+                            int extracted = pEnergy.extractEnergyPure(toGive, false);
+                            if (extracted > 0) {
+                                pEnergy.addExperience(extracted * 0.15f, serverPlayer); // За конвертацію досвіду трохи більше
+                                cap.receiveEnergy(extracted * 10, false);
+                                return extracted;
+                            }
+                        }
+                        return 0;
+                    }).orElse(0);
+
+                    if (txTaken > 0) {
+                        changed = true;
+                        if (pEnergy.getEnergy() <= 0) break;
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package com.maxim.tacionian.energy;
 
+import com.maxim.tacionian.api.effects.ITachyonEffect; // Імпортуємо інтерфейс
 import com.maxim.tacionian.register.ModSounds;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
@@ -14,11 +15,9 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 
 public class PlayerEnergyEffects {
-    // Ця константа потрібна для ModEvents, щоб розпізнавати тахіонну шкоду
     public static final ResourceKey<DamageType> TACHYON_DAMAGE_TYPE = ResourceKey.create(
             Registries.DAMAGE_TYPE, new ResourceLocation("tacionian", "energy"));
 
-    // Метод для створення джерела шкоди (використовується нижче)
     public static DamageSource getTachyonDamage(ServerPlayer player) {
         return new DamageSource(player.level().registryAccess()
                 .registryOrThrow(Registries.DAMAGE_TYPE)
@@ -26,46 +25,70 @@ public class PlayerEnergyEffects {
     }
 
     public static void apply(ServerPlayer player, PlayerEnergy energy) {
+        // Креатив і глядач повністю ігнорують систему ефектів
+        if (player.isCreative() || player.isSpectator()) return;
+        if (energy.getEnergy() <= 0) {
+            if (player.tickCount % 40 == 0) {
+                player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 60, 0));
+            }
+            return;
+        }
         ServerLevel level = player.serverLevel();
         int percent = energy.getEnergyPercent();
-        boolean isProtected = energy.isStabilized() || energy.isRemoteStabilized();
 
-        // --- ЛОГІКА ПЕРЕВАНТАЖЕННЯ (80% - 100%) ---
+        // ПЕРЕВІРКА ЗАХИСТУ: Базові пристрої + Аддони
+        boolean isProtected = energy.isStabilized() ||
+                energy.isInterfaceStabilized() ||
+                energy.isPlateStabilized() ||
+                hasAddonProtection(player);
+
+        // --- ЛОГІКА ПЕРЕВАНТАЖЕННЯ ---
         if (energy.isOverloaded()) {
-            // 1. Звуковий супровід (частішає при наближенні до 100%)
+            // Звук гудіння (Pitch росте разом з енергією)
             int soundInterval = Math.max(2, 25 - (percent - 80));
             if (player.tickCount % soundInterval == 0) {
                 float pitch = 0.5f + (percent / 100f);
                 level.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        ModSounds.TACHYON_HUM.get(), SoundSource.PLAYERS, 0.5f, pitch);
+                        ModSounds.TACHYON_HUM.get(), SoundSource.PLAYERS, 0.4f, pitch);
             }
 
-            // 2. Негативні ефекти (якщо гравець не під стабілізатором)
             if (!isProtected) {
-                // Фізична тряска (85%+)
+                // Тряска камери та відкидання
                 if (percent > 85 && player.tickCount % 5 == 0) {
-                    player.push((level.random.nextFloat() - 0.5) * 0.15, 0, (level.random.nextFloat() - 0.5) * 0.15);
+                    player.push((level.random.nextFloat() - 0.5) * 0.12, 0, (level.random.nextFloat() - 0.5) * 0.12);
                     player.hurtMarked = true;
                 }
 
-                // Шкода, вогонь та дезорієнтація (90%+)
+                // Смертельні ефекти (вогонь і шкода)
                 if (percent > 90 && player.tickCount % 20 == 0) {
-                    player.hurt(getTachyonDamage(player), 1.0f);
-                    player.setSecondsOnFire(2);
-                    player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 100, 0));
+                    player.hurt(getTachyonDamage(player), 2.0f); // Збільшено шкоду
+                    player.setSecondsOnFire(3);
+                    player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 120, 0));
                 }
             }
 
-            // 3. Візуальні частки (електричні розряди навколо гравця)
-            int particleCount = (percent - 70) / 5;
+            // Електричні розряди (видимі навіть із захистом, як індикатор потужності)
+            int particleCount = (percent - 70) / 4;
             level.sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY() + 1.2, player.getZ(),
-                    particleCount, 0.3, 0.5, 0.3, 0.05);
+                    particleCount, 0.4, 0.6, 0.4, 0.05);
         }
 
-        // --- ЛОГІКА КРИТИЧНО НИЗЬКОГО ЗАРЯДУ ---
-        if (energy.isCriticalLow() && player.tickCount % 80 == 0) {
-            // При низькій енергії просто накладаємо втому
-            player.addEffect(new MobEffectInstance(MobEffects.DIG_SLOWDOWN, 60, 0));
+        // --- КРИТИЧНО НИЗЬКИЙ ЗАРЯД ---
+        if (energy.isCriticalLow() && player.tickCount % 40 == 0) {
+            player.addEffect(new MobEffectInstance(MobEffects.DIG_SLOWDOWN, 60, 1));
+            player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 60, 0));
         }
+    }
+
+    /**
+     * Перевіряє, чи має гравець активні ефекти з аддонів, які дають стабілізацію.
+     */
+    private static boolean hasAddonProtection(ServerPlayer player) {
+        for (MobEffectInstance instance : player.getActiveEffects()) {
+            if (instance.getEffect() instanceof ITachyonEffect) {
+                return true; // Якщо це тахіонний ефект, вважаємо його захисним
+            }
+        }
+        return false;
     }
 }
