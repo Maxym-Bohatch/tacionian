@@ -18,7 +18,7 @@
   "tooltip.tacionian.safe_charger_item.desc": "§7Заряжает TX/RF предметы. §cАвтовыключение§7, если энергия игрока <15%.",
 
   "block.tacionian.stabilization_plate": "Стабилизационная плита",
-  "tooltip.tacionian.stabilization_plate.desc": "§7Пассивно поглощает нестабильность. §eShift + стоять на плите: §7Форсированная разрядка.",
+  "tooltip.tacionian.stabilization_plate.desc": "§7Пасивно поглощает нестабильность. §eShift + стоять на плите: §7Форсированная разрядка.",
 
   "block.tacionian.energy_reservoir": "Энергетический резервуар",
   "tooltip.tacionian.energy_reservoir.desc": "§7Высокоемкое хранилище для тахионной энергии.",
@@ -63,5 +63,24 @@
 
   "status.tacionian.active": "§aАКТИВНО",
   "status.tacionian.disabled": "§6ВЫКЛЮЧЕНО",
-  "status.tacionian.blocked": "§cБЛОКИРОВАНО"
+  "status.tacionian.blocked": "§cБЛОКИРОВАНО",
+
+  "command.tacionian.energy.set.success": "§b[Tacionian] §7Энергия установлена на §f%1$s Tx §7для %2$s игроков",
+  "command.tacionian.energy.add.success": "§b[Tacionian] §7Добавлено §f%1$s Tx §7для %2$s игроков",
+  "command.tacionian.energy.remove.success": "§b[Tacionian] §7Изъято §f%1$s Tx §7у %2$s игроков",
+  "command.tacionian.network.success": "§b[Tacionian] §7Статус сети: %s",
+  "command.tacionian.regen.success": "§b[Tacionian] §7Регенерация ядра: %s",
+  "command.tacionian.reset.success": "§b[Tacionian] §7Все показатели и состояния сброшены до заводских настроек.",
+
+  "subtitles.tacionian.tachyon_hum": "Тахионное гудение",
+  "subtitles.tacionian.mode_switch": "Режим изменен",
+  "subtitles.tacionian.energy_boom": "Тахионный взрыв",
+  "command.tacionian.experience.add.success": "§b[Tacionian] §7Добавлено §e%1$s опыта §7для %2$s игроков.",
+  "command.tacionian.experience.set.success": "§b[Tacionian] §7Опыт установлен на §e%1$s §7для %2$s игроков.",
+  "command.tacionian.info.header": "§b--- Инфо о ядре: %s ---",
+  "command.tacionian.info.level": "§7Уровень: §6%s",
+  "command.tacionian.info.energy": "§7Энергия: §b%s / %s Tx",
+  "command.tacionian.info.exp": "§7Опыт: §e%s / %s",
+  "command.tacionian.info.status": "§7Статус сети: %s",
+  "command.tacionian.level.set.success": "§b[Tacionian] §7Уровень установлен на §f%1$s §7для %2$s игроков. Энергия: 50%."
 }

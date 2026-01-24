@@ -63,5 +63,24 @@
 
   "status.tacionian.active": "§aACTIVE",
   "status.tacionian.disabled": "§6DISABLED",
-  "status.tacionian.blocked": "§cBLOCKED"
+  "status.tacionian.blocked": "§cBLOCKED",
+
+  "command.tacionian.energy.set.success": "§b[Tacionian] §7Energy set to §f%1$s Tx §7for %2$s player(s)",
+  "command.tacionian.energy.add.success": "§b[Tacionian] §7Added §f%1$s Tx §7to %2$s player(s)",
+  "command.tacionian.energy.remove.success": "§b[Tacionian] §7Removed §f%1$s Tx §7from %2$s player(s)",
+  "command.tacionian.network.success": "§b[Tacionian] §7Network status: %s",
+  "command.tacionian.regen.success": "§b[Tacionian] §7Core regeneration: %s",
+  "command.tacionian.reset.success": "§b[Tacionian] §7All parameters and states reset to factory defaults.",
+
+  "subtitles.tacionian.tachyon_hum": "Tachyon humming",
+  "subtitles.tacionian.mode_switch": "Mode switched",
+  "subtitles.tacionian.energy_boom": "Tachyon explosion",
+  "command.tacionian.experience.add.success": "§b[Tacionian] §7Added §e%1$s experience §7to %2$s player(s).",
+  "command.tacionian.experience.set.success": "§b[Tacionian] §7Experience set to §e%1$s §7for %2$s player(s).",
+  "command.tacionian.info.header": "§b--- Core Info: %s ---",
+  "command.tacionian.info.level": "§7Level: §6%s",
+  "command.tacionian.info.energy": "§7Energy: §b%s / %s Tx",
+  "command.tacionian.info.exp": "§7Experience: §e%s / %s",
+  "command.tacionian.info.status": "§7Network status: %s",
+  "command.tacionian.level.set.success": "§b[Tacionian] §7Level set to §f%1$s §7for %2$s player(s). Energy: 50%."
 }

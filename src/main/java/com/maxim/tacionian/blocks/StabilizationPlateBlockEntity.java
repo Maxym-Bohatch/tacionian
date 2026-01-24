@@ -26,7 +26,7 @@ import org.jetbrains.annotations.Nullable;
 public class StabilizationPlateBlockEntity extends BlockEntity implements ITachyonStorage {
     private int storedEnergy = 0;
     private final int MAX_CAPACITY = 10000;
-    private int currentMode = 0; // 0: Safe(75%), 1: Bal(40%), 2: Perf(15%), 3: Unrest(0%)
+    private int currentMode = 0;
 
     public StabilizationPlateBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.STABILIZER_PLATE_BE.get(), pos, state);
@@ -42,26 +42,17 @@ public class StabilizationPlateBlockEntity extends BlockEntity implements ITachy
     public static void tick(Level level, BlockPos pos, BlockState state, StabilizationPlateBlockEntity be) {
         if (level.isClientSide) return;
 
-        // 1. ПОШУК ГРАВЦІВ НАД ПЛИТОЮ
         AABB area = new AABB(pos.above());
         level.getEntitiesOfClass(ServerPlayer.class, area).forEach(player -> {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
-
-                // СИГНАЛ ДЛЯ HUD
                 pEnergy.setPlateStabilized(true);
-
-                // ЛОГІКА РЕЖИМІВ:
-                // В Unrestricted (3) НЕ блокуємо реген пасивно, в інших - блокуємо
                 pEnergy.setRegenBlocked(be.currentMode != 3);
 
-                // ВИЗНАЧЕННЯ ПОРОГУ
-                // Якщо режим 3 і НЕ присіли - поріг 201% (нічого не зливаємо)
-                // Якщо присіли (Shift) у БУДЬ-ЯКОМУ режимі - поріг завжди 0 (зливаємо все)
                 int thresholdPercent = (be.currentMode == 3 && !player.isCrouching()) ? 201 : switch (be.currentMode) {
                     case 0 -> 75;
                     case 1 -> 40;
                     case 2 -> 15;
-                    default -> 0; // Режим 3 при Shift
+                    default -> 0;
                 };
 
                 int effectiveThreshold = (pEnergy.getMaxEnergy() * thresholdPercent) / 100;
@@ -69,65 +60,44 @@ public class StabilizationPlateBlockEntity extends BlockEntity implements ITachy
 
                 if (pEnergy.getEnergy() > effectiveThreshold) {
                     int excess = pEnergy.getEnergy() - effectiveThreshold;
-
-                    // У режимі Unrestricted + Shift швидкість висмоктування в 1.5 рази вища
                     int drainBoost = (be.currentMode == 3 && player.isCrouching()) ? 60 : 40;
                     int toExtract = drainBoost + (excess / 10);
 
                     int actuallyExtracted = pEnergy.extractEnergyPure(toExtract, false);
                     int accepted = be.receiveTacionEnergy(actuallyExtracted, false);
 
-                    // Ефекти роботи
-                    if (level.getGameTime() % 4 == 0) {
+                    if (level.getGameTime() % 10 == 0) {
                         float pitch = (player.isCrouching() && be.currentMode == 3) ? 0.7f : 1.1f;
-                        level.playSound(null, pos, ModSounds.TACHYON_HUM.get(), SoundSource.BLOCKS, 0.4f, pitch);
+                        level.playSound(null, pos, ModSounds.TACHYON_HUM.get(), SoundSource.BLOCKS, 0.3f, pitch);
 
                         if (actuallyExtracted > 0) {
-                            level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.3f, 1.3f);
+                            level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.25f, 1.3f);
                         }
-
-                        // Якщо це режим Unrestricted + Shift, додаємо блакитні вогні
-                        if (be.currentMode == 3 && player.isCrouching()) {
-                            ((ServerLevel)level).sendParticles(ParticleTypes.SOUL_FIRE_FLAME,
-                                    player.getX(), player.getY() + 0.5, player.getZ(), 4, 0.2, 0.2, 0.2, 0.03);
-                        }
-
-                        ((ServerLevel)level).sendParticles(ParticleTypes.ELECTRIC_SPARK,
-                                player.getX(), player.getY() + 0.1, player.getZ(), 3, 0.1, 0.1, 0.1, 0.05);
+                        ((ServerLevel)level).sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY() + 0.1, player.getZ(), 2, 0.1, 0.1, 0.1, 0.05);
                     }
 
-                    // Waste (Надлишок у повітря)
                     if (accepted < actuallyExtracted) {
-                        int waste = actuallyExtracted - accepted;
-                        MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, waste));
-
-                        if (level.getGameTime() % 5 == 0) {
-                            ((ServerLevel)level).sendParticles(ParticleTypes.SMOKE,
-                                    pos.getX() + 0.5, pos.getY() + 1.1, pos.getZ() + 0.5, 4, 0.15, 0.1, 0.15, 0.02);
-
-                            if (be.currentMode == 3 && waste > 50) {
-                                ((ServerLevel)level).sendParticles(ParticleTypes.SOUL,
-                                        pos.getX() + 0.5, pos.getY() + 1.2, pos.getZ() + 0.5, 1, 0.1, 0.1, 0.1, 0.05);
-                            }
-                        }
+                        MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, actuallyExtracted - accepted));
                     }
                     pEnergy.sync(player);
+                    // Викликаємо через екземпляр 'be'
+                    be.setChanged();
                 }
             });
         });
 
-        // 6. РОЗПОДІЛ ЕНЕРГІЇ В МЕРЕЖУ
         if (be.storedEnergy > 0) {
             for (Direction dir : Direction.values()) {
                 if (be.storedEnergy <= 0) break;
-
                 BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
                 if (neighbor != null && !(neighbor instanceof StabilizationPlateBlockEntity)) {
                     neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                        int canPush = Math.min(be.storedEnergy, 250);
-                        int pushed = cap.receiveTacionEnergy(canPush, false);
-                        be.storedEnergy -= pushed;
-                        be.setChanged();
+                        int pushed = cap.receiveTacionEnergy(Math.min(be.storedEnergy, 250), false);
+                        if (pushed > 0) {
+                            be.storedEnergy -= pushed;
+                            // Викликаємо через екземпляр 'be'
+                            be.setChanged();
+                        }
                     });
                 }
             }
@@ -173,9 +143,7 @@ public class StabilizationPlateBlockEntity extends BlockEntity implements ITachy
 
     @Override
     public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
-        if (cap == ModCapabilities.TACHYON_STORAGE) {
-            return LazyOptional.of(() -> this).cast();
-        }
+        if (cap == ModCapabilities.TACHYON_STORAGE) return LazyOptional.of(() -> this).cast();
         return super.getCapability(cap, side);
     }
 }
