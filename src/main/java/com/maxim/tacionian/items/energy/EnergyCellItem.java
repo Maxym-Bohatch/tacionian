@@ -22,15 +22,12 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.jetbrains.annotations.Nullable;
-
 import java.util.List;
 
 public class EnergyCellItem extends Item {
     private static final int MAX_ENERGY = 3000;
 
-    public EnergyCellItem(Properties props) {
-        super(props.stacksTo(1));
-    }
+    public EnergyCellItem(Properties props) { super(props.stacksTo(1)); }
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
@@ -51,16 +48,16 @@ public class EnergyCellItem extends Item {
                     int toGive = storage.receiveTacionEnergy(currentEnergy, false);
                     nbt.putInt("energy", currentEnergy - toGive);
                     player.displayClientMessage(Component.translatable("message.tacionian.discharged", toGive).withStyle(ChatFormatting.RED), true);
-                    // ЗВУК: Розрядка
-                    level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.6f, 0.8f);
+                    // ЗВУК: Твоя розрядка в блок
+                    level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.7f, 0.8f);
                 } else {
                     int space = MAX_ENERGY - currentEnergy;
                     int toTake = storage.extractTacionEnergy(space, false);
                     nbt.putInt("energy", currentEnergy + toTake);
                     if (player != null) {
                         player.displayClientMessage(Component.translatable("message.tacionian.charged", toTake).withStyle(ChatFormatting.GREEN), true);
-                        // ЗВУК: Зарядка (вищий тон)
-                        level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.6f, 1.2f);
+                        // ЗВУК: Твоя зарядка в предмет
+                        level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.7f, 1.3f);
                     }
                 }
                 return InteractionResult.CONSUME;
@@ -84,8 +81,8 @@ public class EnergyCellItem extends Item {
                 if (toGive > 0) {
                     pEnergy.receiveEnergyPure(toGive, false);
                     nbt.putInt("energy", stored - toGive);
-                    // ЗВУК: Переливання в гравця
-                    level.playSound(null, player.blockPosition(), ModSounds.MODE_SWITCH.get(), SoundSource.PLAYERS, 0.3f, 1.1f);
+                    // ЗВУК: Ефект переливання в гравця
+                    level.playSound(null, player.blockPosition(), ModSounds.MODE_SWITCH.get(), SoundSource.PLAYERS, 0.4f, 1.2f);
                 }
             } else {
                 int spaceInCell = MAX_ENERGY - stored;
@@ -93,8 +90,8 @@ public class EnergyCellItem extends Item {
                 if (toTake > 0) {
                     pEnergy.extractEnergyPure(toTake, false);
                     nbt.putInt("energy", stored + toTake);
-                    // ЗВУК: Переливання в ядро
-                    level.playSound(null, player.blockPosition(), ModSounds.MODE_SWITCH.get(), SoundSource.PLAYERS, 0.3f, 0.9f);
+                    // ЗВУК: Ефект переливання в комірку
+                    level.playSound(null, player.blockPosition(), ModSounds.MODE_SWITCH.get(), SoundSource.PLAYERS, 0.4f, 0.8f);
                 }
             }
             pEnergy.sync(serverPlayer);
@@ -109,8 +106,7 @@ public class EnergyCellItem extends Item {
     }
     @Override public int getBarColor(ItemStack stack) { return Mth.hsvToRgb(0.55F, 1.0F, 1.0F); }
 
-    @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+    @Override public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         int energy = stack.hasTag() ? stack.getTag().getInt("energy") : 0;
         tooltip.add(Component.translatable("tooltip.tacionian.energy_cell.charge", energy, MAX_ENERGY).withStyle(ChatFormatting.AQUA));
         tooltip.add(Component.empty());

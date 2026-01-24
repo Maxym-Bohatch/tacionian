@@ -1,5 +1,6 @@
 {
   "itemGroup.tacionian_tab": "Tacionian",
+
   "item.tacionian.energy_cell": "Energy Core",
   "tooltip.tacionian.energy_cell.charge": "Charge: §b%s / %s Tx",
   "tooltip.tacionian.energy_cell.controls_1": "§6[Shift] §7— Details",
@@ -9,16 +10,15 @@
   "item.tacionian.energy_stabilizer": "Portable Stabilizer",
   "tooltip.tacionian.energy_stabilizer.desc": "§7Regulates tachyon flow to prevent your internal core from overloading.",
   "tooltip.tacionian.energy_stabilizer.mode": "Current Mode: ",
-  "tooltip.tacionian.energy_stabilizer.use_info": "§eHold RMB: §7Rapidly discharge excess energy",
+  "tooltip.tacionian.energy_stabilizer.use_info": "§eHold RMB: §7Emergency energy purge",
 
   "item.tacionian.basic_charger_item": "Basic Tachyon Charger",
   "tooltip.tacionian.basic_charger_item.desc": "§7Slowly charges TX/RF items in inventory (§e10 Tx/t§7).",
-
   "item.tacionian.safe_charger_item": "Safe Tachyon Charger",
   "tooltip.tacionian.safe_charger_item.desc": "§7Charges TX/RF items. §cAuto-shutdown§7 if player energy <15%.",
 
   "block.tacionian.stabilization_plate": "Stabilization Plate",
-  "tooltip.tacionian.stabilization_plate.desc": "§7Passively absorbs instability. §eShift + Stand on plate: §7Fast discharge.",
+  "tooltip.tacionian.stabilization_plate.desc": "§7Passively absorbs instability. §eShift + Stand on plate: §7Forced discharge.",
 
   "block.tacionian.energy_reservoir": "Energy Reservoir",
   "tooltip.tacionian.energy_reservoir.desc": "§7High-capacity storage for Tachyon energy.",
@@ -31,7 +31,6 @@
 
   "block.tacionian.basic_charger_block": "Charging Block",
   "tooltip.tacionian.basic_charger_block.desc": "§7Converts your energy to grid energy (§e500 Tx/t§7).",
-
   "block.tacionian.safe_charger_block": "Safe Charging Block",
   "tooltip.tacionian.safe_charger_block.desc": "§7Transfers energy to the grid. Stops at §e20%§7 of your charge.",
 
@@ -40,37 +39,29 @@
 
   "message.tacionian.level_up": "§b[Tacionian] §fCore level increased to: §6%s",
   "message.tacionian.level_down": "§4§lWARNING! §cCore level downgraded to: %s",
-  "message.tacionian.mode_switched": "Interface Mode: %s",
+  "message.tacionian.novice_protection": "§e[Stabilization] §fNovice protection active. Safety system will disengage at level %s!",
+  "message.tacionian.protection_lost": "§c§l[WARNING] §fNovice protection lost! You are now vulnerable to overloads.",
+  "message.tacionian.mode_switched": "Stabilization Mode: %s",
   "message.tacionian.overload_critical": "§c§lCRITICAL! §7Core structure is collapsing! (>150%)",
   "message.tacionian.low_energy_warning": "§eCore unstable! Low energy levels!",
   "message.tacionian.jammed_warning": "§e§lSIGNAL LOST! §7Tachyon connection is jammed!",
-
   "message.tacionian.charged": "§aCore charged: +%s Tx",
   "message.tacionian.discharged": "§cCore discharged: -%s Tx",
-  "message.tacionian.safety_limit": "Safety system: critically low tachyon energy level!",
+  "message.tacionian.safety_limit": "Safety system: critically low energy level!",
 
-  "mode.tacionian.safe": "§aEco Mode (Keep Core at 75%)",
-  "mode.tacionian.balanced": "§eBalanced (Keep Core at 40%)",
-  "mode.tacionian.performance": "§6High Discharge (Keep Core at 15%)",
-  "mode.tacionian.unrestricted": "§4Full Drain (Drain to 0%)",
+  "mode.tacionian.safe": "§aEco Mode (75%)",
+  "mode.tacionian.balanced": "§eBalanced (40%)",
+  "mode.tacionian.performance": "§6Performance (15%)",
+  "mode.tacionian.unrestricted": "§4§lUNRESTRICTED (200%)",
 
   "hud.tacionian.level": "LVL %s",
   "hud.tacionian.energy_unit": "Tx",
   "tooltip.tacionian.active": "§aSTATUS: ACTIVE",
   "tooltip.tacionian.inactive": "§cSTATUS: INACTIVE",
   "death.attack.tacionian.energy": "%1$s's core has imploded due to energy overload",
+  "death.attack.tacionian.energy.player": "%1$s was vaporized by %2$s's tachyon burst",
 
-  "status.tacionian.active": "§aACTIVE§r",
-  "status.tacionian.disabled": "§6DISABLED§r",
-  "status.tacionian.blocked": "§cBLOCKED§r",
-
-  "command.tacionian.energy.set.success": "§b[Tacionian] §7Energy set to §f%1$s Tx §7for %2$s players",
-  "command.tacionian.energy.add.success": "§b[Tacionian] §7Added §f%1$s Tx §7to %2$s players",
-  "command.tacionian.energy.remove.success": "§b[Tacionian] §7Removed §f%1$s Tx §7from %2$s players",
-  "command.tacionian.network.success": "§b[Tacionian] §7Network status: %s",
-  "command.tacionian.regen.success": "§b[Tacionian] §7Core regeneration: %s",
-  "command.tacionian.reset.success": "§b[Tacionian] §7All stats and states have been factory reset.",
-  "subtitles.tacionian.tachyon_hum": "Tachyon humming",
-  "subtitles.tacionian.mode_switch": "Mode switched",
-  "subtitles.tacionian.energy_boom": "Tachyon explosion"
+  "status.tacionian.active": "§aACTIVE",
+  "status.tacionian.disabled": "§6DISABLED",
+  "status.tacionian.blocked": "§cBLOCKED"
 }

@@ -1,5 +1,6 @@
 {
   "itemGroup.tacionian_tab": "Tacionian",
+
   "item.tacionian.energy_cell": "Енергетичне ядро",
   "tooltip.tacionian.energy_cell.charge": "Заряд: §b%s / %s Tx",
   "tooltip.tacionian.energy_cell.controls_1": "§6[Shift] §7— Деталі",
@@ -9,16 +10,15 @@
   "item.tacionian.energy_stabilizer": "Портативний стабілізатор",
   "tooltip.tacionian.energy_stabilizer.desc": "§7Регулює потік тахіонів, запобігаючи перевантаженню внутрішнього ядра.",
   "tooltip.tacionian.energy_stabilizer.mode": "Поточний режим: ",
-  "tooltip.tacionian.energy_stabilizer.use_info": "§eУтримуйте ПКМ: §7Швидке скидання зайвої енергії",
+  "tooltip.tacionian.energy_stabilizer.use_info": "§eУтримуйте ПКМ: §7Екстрене скидання енергії",
 
   "item.tacionian.basic_charger_item": "Базовий тахіонний заряджач",
   "tooltip.tacionian.basic_charger_item.desc": "§7Повільно заряджає TX/RF предмети в інвентарі (§e10 Tx/т§7).",
-
   "item.tacionian.safe_charger_item": "Безпечний тахіонний заряджач",
   "tooltip.tacionian.safe_charger_item.desc": "§7Заряджає TX/RF предмети. §cАвтовимкнення§7, якщо енергія гравця <15%.",
 
   "block.tacionian.stabilization_plate": "Стабілізаційна плита",
-  "tooltip.tacionian.stabilization_plate.desc": "§7Пасивно поглинає нестабільність. §eShift + стояти на плиті: §7Швидка розрядка.",
+  "tooltip.tacionian.stabilization_plate.desc": "§7Пасивно поглинає нестабільність. §eShift + стояти на плиті: §7Форсована розрядка.",
 
   "block.tacionian.energy_reservoir": "Енергетичний резервуар",
   "tooltip.tacionian.energy_reservoir.desc": "§7Високоємне сховище для тахіонної енергії.",
@@ -26,12 +26,11 @@
   "tooltip.tacionian.energy_reservoir.energy": "Збережено: §b%s / %s Tx",
 
   "block.tacionian.wireless_energy_interface": "Бездротовий інтерфейс",
-  "tooltip.tacionian.wireless_interface.desc": "§7Передає енергію з вашого внутрішнього ядра в мережу.",
+  "tooltip.tacionian.wireless_interface.desc": "§7Транслює енергію з вашого внутрішнього ядра в мережу.",
   "tooltip.tacionian.wireless_interface.power": "§7Ефективна дальність: §e20 блоків",
 
   "block.tacionian.basic_charger_block": "Зарядний блок",
   "tooltip.tacionian.basic_charger_block.desc": "§7Перетворює вашу енергію на енергію мережі (§e500 Tx/т§7).",
-
   "block.tacionian.safe_charger_block": "Безпечний зарядний блок",
   "tooltip.tacionian.safe_charger_block.desc": "§7Передає енергію в мережу. Зупиняється на §e20%§7 вашого заряду.",
 
@@ -40,29 +39,31 @@
 
   "message.tacionian.level_up": "§b[Tacionian] §fРівень ядра підвищено до: §6%s",
   "message.tacionian.level_down": "§4§lУВАГА! §cРівень ядра знижено до: %s",
-  "message.tacionian.mode_switched": "Режим інтерфейсу: %s",
+  "message.tacionian.novice_protection": "§e[Стабілізація] §fДіє захист для початківців. Система безпеки вимкнеться на %s рівні!",
+  "message.tacionian.protection_lost": "§c§l[УВАГА] §fЗахист початківця втрачено! Ви тепер вразливі до перевантажень.",
+  "message.tacionian.mode_switched": "Режим стабілізації: %s",
   "message.tacionian.overload_critical": "§c§lКРИТИЧНО! §7Структура ядра руйнується! (>150%)",
   "message.tacionian.low_energy_warning": "§eЯдро нестабільне! Низький рівень енергії!",
   "message.tacionian.jammed_warning": "§e§lСИГНАЛ ВТРАЧЕНО! §7Тахіонне з'єднання заблоковано!",
-
   "message.tacionian.charged": "§aЯдро заряджено: +%s Tx",
   "message.tacionian.discharged": "§cЯдро розряджено: -%s Tx",
   "message.tacionian.safety_limit": "Система безпеки: критично низький рівень енергії!",
 
-  "mode.tacionian.safe": "§aЕко-режим (Тримати ядро на 75%)",
-  "mode.tacionian.balanced": "§eЗбалансований (Тримати ядро на 40%)",
-  "mode.tacionian.performance": "§6Висока розрядка (Тримати ядро на 15%)",
-  "mode.tacionian.unrestricted": "§4Повне виснаження (Злив до 0%)",
+  "mode.tacionian.safe": "§aЕко-режим (75%)",
+  "mode.tacionian.balanced": "§eЗбалансований (40%)",
+  "mode.tacionian.performance": "§6Потужна розрядка (15%)",
+  "mode.tacionian.unrestricted": "§4§lНЕОБМЕЖЕНИЙ (200%)",
 
   "hud.tacionian.level": "РІВЕНЬ %s",
   "hud.tacionian.energy_unit": "Tx",
   "tooltip.tacionian.active": "§aСТАТУС: АКТИВНИЙ",
   "tooltip.tacionian.inactive": "§cСТАТУС: НЕАКТИВНИЙ",
   "death.attack.tacionian.energy": "Ядро %1$s імплодувало через перевантаження енергією",
+  "death.attack.tacionian.energy.player": "Ядро %1$s розірвало на шматки тахіонним сплеском від %2$s",
 
-  "status.tacionian.active": "§aАКТИВНО§r",
-  "status.tacionian.disabled": "§6ВИМКНЕНО§r",
-  "status.tacionian.blocked": "§cЗАБЛОКОВАНО§r",
+  "status.tacionian.active": "§aАКТИВНО",
+  "status.tacionian.disabled": "§6ВИМКНЕНО",
+  "status.tacionian.blocked": "§cБЛОКОВАНО",
 
   "command.tacionian.energy.set.success": "§b[Tacionian] §7Енергію встановлено на §f%1$s Tx §7для %2$s гравців",
   "command.tacionian.energy.add.success": "§b[Tacionian] §7Додано §f%1$s Tx §7для %2$s гравців",
@@ -70,7 +71,16 @@
   "command.tacionian.network.success": "§b[Tacionian] §7Статус мережі: %s",
   "command.tacionian.regen.success": "§b[Tacionian] §7Регенерація ядра: %s",
   "command.tacionian.reset.success": "§b[Tacionian] §7Всі показники та стани скинуто до заводських налаштувань.",
+
   "subtitles.tacionian.tachyon_hum": "Тахіонне гудіння",
   "subtitles.tacionian.mode_switch": "Режим змінено",
-  "subtitles.tacionian.energy_boom": "Тахіонний вибух"
+  "subtitles.tacionian.energy_boom": "Тахіонний вибух",
+  "command.tacionian.experience.add.success": "§b[Tacionian] §7Додано §e%1$s досвіду §7для %2$s гравців.",
+  "command.tacionian.experience.set.success": "§b[Tacionian] §7Досвід встановлено на §e%1$s §7для %2$s гравців.",
+  "command.tacionian.info.header": "§b--- Інформація про ядро: %s ---",
+  "command.tacionian.info.level": "§7Рівень: §6%s",
+  "command.tacionian.info.energy": "§7Енергія: §b%s / %s Tx",
+  "command.tacionian.info.exp": "§7Досвід: §e%s / %s",
+  "command.tacionian.info.status": "§7Статус мережі: %s",
+  "command.tacionian.level.set.success": "§b[Tacionian] §7Рівень встановлено на §f%1$s §7для %2$s гравців. Енергія: 50%."
 }

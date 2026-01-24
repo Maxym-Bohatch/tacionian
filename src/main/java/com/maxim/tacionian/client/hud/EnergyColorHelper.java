@@ -1,6 +1,7 @@
 package com.maxim.tacionian.client.hud;
 
 import com.maxim.tacionian.energy.ClientPlayerEnergy;
+import com.maxim.tacionian.config.TacionianConfig; // Додано імпорт конфігу
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 
@@ -12,27 +13,47 @@ public class EnergyColorHelper {
         long time = Minecraft.getInstance().level.getGameTime();
         float totalTime = time + Minecraft.getInstance().getFrameTime();
 
-        // Блимання при перевантаженні без захисту
+        // 1. Блимання при перевантаженні (критична межа)
         if (ratio > 0.98f && !isAnyProtection()) {
             float pulse = (Mth.sin(totalTime * 1.5f) + 1.0f) * 0.5f;
             return lerpColor(0xFFFF0000, 0xFFFFFFFF, pulse);
         }
 
-        if (ClientPlayerEnergy.isRemoteNoDrain()) return 0xFF00FF44; // Зелений (Стабілізатор)
+        // 2. Пріоритети кольорів захисту
+        if (ClientPlayerEnergy.isRemoteNoDrain()) return 0xFF00FF44; // Зелений
         if (ClientPlayerEnergy.isInterfaceStabilized()) return 0xFFA020F0; // Фіолетовий
         if (ClientPlayerEnergy.isPlateStabilized()) return 0xFF00FBFF; // Блакитний
 
-        if (ratio > 0.85f) return 0xFFFFFF00; // Жовтий
-        return 0xFF00FFFF; // Стандарт
+        // 3. Колір попередження
+        if (ratio > 0.85f) return 0xFFFFFF00;
+
+        return 0xFF00FFFF;
     }
 
     private static boolean isAnyProtection() {
-        return ClientPlayerEnergy.isRemoteNoDrain() || ClientPlayerEnergy.isInterfaceStabilized() || ClientPlayerEnergy.isPlateStabilized();
+        return ClientPlayerEnergy.isRemoteNoDrain() ||
+                ClientPlayerEnergy.isInterfaceStabilized() ||
+                ClientPlayerEnergy.isPlateStabilized();
     }
 
     public static float getShakeAmplitude() {
+        if (!ClientPlayerEnergy.hasData()) return 0f;
+
         float ratio = ClientPlayerEnergy.getRatio();
-        if (ratio < 0.8f || isAnyProtection()) return 0f;
+
+        // ФІКС: Якщо будь-який захист активний — жодної тряски
+        if (isAnyProtection()) return 0f;
+
+        // ФІКС ТРЯСКИ НОВАЧКІВ:
+        // Якщо рівень менше або дорівнює порогу новачків, і енергія на межі 85% - не трясемо.
+        int noviceThreshold = TacionianConfig.NOVICE_LEVEL_THRESHOLD.get();
+        if (ClientPlayerEnergy.getLevel() <= noviceThreshold && ratio >= 0.84f) {
+            return 0f;
+        }
+
+        if (ratio < 0.8f) return 0f;
+
+        // Масштабування тряски (від 0.8 до 1.0)
         return (ratio - 0.8f) * 20.0f;
     }
 
