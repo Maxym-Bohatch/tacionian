@@ -17,6 +17,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.LazyOptional;
@@ -48,54 +49,87 @@ public class StabilizationPlateBlockEntity extends BlockEntity implements ITachy
                 pEnergy.setPlateStabilized(true);
                 pEnergy.setRegenBlocked(be.currentMode != 3);
 
-                int thresholdPercent = (be.currentMode == 3 && !player.isCrouching()) ? 201 : switch (be.currentMode) {
+                int thresholdPercent = switch (be.currentMode) {
                     case 0 -> 75;
                     case 1 -> 40;
                     case 2 -> 15;
-                    default -> 0;
+                    case 3 -> 205; // В Unrestricted дозволяємо до 205%
+                    default -> 100; // Стандартний поріг
                 };
 
-                int effectiveThreshold = (pEnergy.getMaxEnergy() * thresholdPercent) / 100;
-                if (player.isCrouching()) effectiveThreshold = 0;
+                int effectiveThreshold = player.isCrouching() ? 0 : (pEnergy.getMaxEnergy() * thresholdPercent) / 100;
 
+                int actuallyExtracted = 0; // Змінна для відстеження кількості викачаної енергії
                 if (pEnergy.getEnergy() > effectiveThreshold) {
                     int excess = pEnergy.getEnergy() - effectiveThreshold;
-                    int drainBoost = (be.currentMode == 3 && player.isCrouching()) ? 60 : 40;
-                    int toExtract = drainBoost + (excess / 10);
+                    int drainRate = (be.currentMode == 3 && player.isCrouching()) ? 80 : 40;
+                    int toExtract = drainRate + (excess / 10);
 
-                    int actuallyExtracted = pEnergy.extractEnergyPure(toExtract, false);
+                    actuallyExtracted = pEnergy.extractEnergyPure(toExtract, false); // Зберігаємо результат
                     int accepted = be.receiveTacionEnergy(actuallyExtracted, false);
 
                     if (level.getGameTime() % 10 == 0) {
-                        float pitch = (player.isCrouching() && be.currentMode == 3) ? 0.7f : 1.1f;
-                        level.playSound(null, pos, ModSounds.TACHYON_HUM.get(), SoundSource.BLOCKS, 0.3f, pitch);
+                        float pitch = player.isCrouching() ? 0.7f : 1.2f;
+                        level.playSound(null, pos, ModSounds.TACHYON_HUM.get(), SoundSource.BLOCKS, 0.25f, pitch);
 
                         if (actuallyExtracted > 0) {
-                            level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.25f, 1.3f);
+                            level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.2f, 1.4f);
                         }
-                        ((ServerLevel)level).sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY() + 0.1, player.getZ(), 2, 0.1, 0.1, 0.1, 0.05);
                     }
 
                     if (accepted < actuallyExtracted) {
                         MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, actuallyExtracted - accepted));
                     }
                     pEnergy.sync(player);
-                    // Викликаємо через екземпляр 'be'
                     be.setChanged();
                 }
+
+                // --- НОВИЙ КОД ДЛЯ ВІЗУАЛЬНОГО ЕФЕКТУ (ПРОМІНЬ) ---
+                if (actuallyExtracted > 0 || (pEnergy.getEnergy() < pEnergy.getMaxEnergy() * thresholdPercent / 100 && be.currentMode == 3 && !player.isCrouching())) {
+                    // Умовно вважаємо, що активна взаємодія, якщо або енергія викачується,
+                    // або гравець на плиті в режимі 3 (Unrestricted) і заряджається
+
+                    Vec3 playerFeetPos = player.position().add(0, -0.05, 0); // Трохи нижче ніг гравця
+                    Vec3 plateCenterPos = Vec3.atCenterOf(pos).add(0, 0.1, 0); // Центр плити, трохи вище
+
+                    double distance = plateCenterPos.distanceTo(playerFeetPos);
+                    // Кількість частинок залежить від відстані та "інтенсивності"
+                    int particlesPerTick = Math.max(1, (int)(distance * 1.5));
+
+                    // Генеруємо частинки вздовж лінії між плитою та гравцем
+                    for (int i = 0; i < particlesPerTick; i++) {
+                        double progress = (double)i / particlesPerTick;
+                        double x = plateCenterPos.x + (playerFeetPos.x - plateCenterPos.x) * progress;
+                        double y = plateCenterPos.y + (playerFeetPos.y - plateCenterPos.y) * progress;
+                        double z = plateCenterPos.z + (playerFeetPos.z - plateCenterPos.z) * progress;
+
+                        // Додаємо випадковість для "об'єму" променя
+                        double offsetX = (level.getRandom().nextDouble() - 0.5) * 0.2;
+                        double offsetY = (level.getRandom().nextDouble() - 0.5) * 0.2;
+                        double offsetZ = (level.getRandom().nextDouble() - 0.5) * 0.2;
+
+                        ((ServerLevel)level).sendParticles(
+                                ParticleTypes.ELECTRIC_SPARK,
+                                x + offsetX, y + offsetY, z + offsetZ,
+                                1, 0, 0, 0, 0
+                        );
+                    }
+                }
+                // --- КІНЕЦЬ НОВОГО КОДУ ДЛЯ ВІЗУАЛЬНОГО ЕФЕКТУ ---
+
             });
         });
 
+        // Передача енергії з буфера плити в сусідні блоки (кабелі/сховища)
         if (be.storedEnergy > 0) {
             for (Direction dir : Direction.values()) {
                 if (be.storedEnergy <= 0) break;
                 BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
                 if (neighbor != null && !(neighbor instanceof StabilizationPlateBlockEntity)) {
                     neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                        int pushed = cap.receiveTacionEnergy(Math.min(be.storedEnergy, 250), false);
+                        int pushed = cap.receiveTacionEnergy(Math.min(be.storedEnergy, 500), false);
                         if (pushed > 0) {
                             be.storedEnergy -= pushed;
-                            // Викликаємо через екземпляр 'be'
                             be.setChanged();
                         }
                     });
@@ -118,23 +152,15 @@ public class StabilizationPlateBlockEntity extends BlockEntity implements ITachy
         nbt.putInt("StabilizationMode", currentMode);
     }
 
-    @Override
-    public int receiveTacionEnergy(int amount, boolean simulate) {
+    @Override public int receiveTacionEnergy(int amount, boolean simulate) {
         int canReceive = Math.min(amount, MAX_CAPACITY - storedEnergy);
-        if (!simulate && canReceive > 0) {
-            storedEnergy += canReceive;
-            setChanged();
-        }
+        if (!simulate && canReceive > 0) { storedEnergy += canReceive; setChanged(); }
         return canReceive;
     }
 
-    @Override
-    public int extractTacionEnergy(int amount, boolean simulate) {
+    @Override public int extractTacionEnergy(int amount, boolean simulate) {
         int canExtract = Math.min(amount, storedEnergy);
-        if (!simulate && canExtract > 0) {
-            storedEnergy -= canExtract;
-            setChanged();
-        }
+        if (!simulate && canExtract > 0) { storedEnergy -= canExtract; setChanged(); }
         return canExtract;
     }
 

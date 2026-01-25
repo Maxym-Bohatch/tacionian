@@ -59,11 +59,14 @@ public class PlayerEnergy {
 
     public int getRequiredExp() { return level < 20 ? 500 + (level * 100) : 2500 + (level * 250); }
     public int getRegenRate() { return (int) (TacionianConfig.BASE_REGEN.get() + (level * 2.0)); }
+
     public boolean isOverloaded() {
         return getEnergyFraction() >= 0.90f;
     }
+
     public int receiveEnergyPure(int amount, boolean simulate) {
         int absoluteMax = getMaxEnergy();
+        // Хард-кап: 85% для новачків, 200% для досвідчених
         int hardCap = (this.level <= TacionianConfig.NOVICE_LEVEL_THRESHOLD.get()) ? (int)(absoluteMax * 0.85f) : absoluteMax * 2;
         if (this.energy >= hardCap) return 0;
         int toAdd = Math.min(amount, hardCap - this.energy);
@@ -112,15 +115,16 @@ public class PlayerEnergy {
             this.regenBlocked = false;
         }
 
+        // Візуальні ефекти та звуки перевантаження
         if (ratio > 1.05f) {
             if (isStabilizedLogicActive()) {
                 applyTurboEffects(serverPlayer, ratio);
             } else if (player.tickCount % 20 == 0) {
-                // Замість аларму — високий писк гудіння
                 player.level().playSound(null, player.blockPosition(), ModSounds.TACHYON_HUM.get(), SoundSource.PLAYERS, 0.5f, 1.9f);
             }
         }
 
+        // Логіка вибуху при критичному перевантаженні БЕЗ стабілізації
         if (ratio >= 1.0f && !player.isCreative() && !player.isSpectator()) {
             if (!isStabilizedLogicActive()) {
                 if (ratio > 1.2f && player.getRandom().nextFloat() < (ratio - 1.0f) * 0.15f) {
@@ -133,7 +137,6 @@ public class PlayerEnergy {
                     this.energy = 0;
                     this.sync(serverPlayer);
                 } else if (ratio > 1.15f) {
-                    // Замість звуку вибуху — низький звук зарядки
                     player.level().playSound(null, player.blockPosition(), ModSounds.ENERGY_CHARGE.get(), SoundSource.PLAYERS, 1.0f, 0.5f);
                     player.level().explode(null, player.getX(), player.getY(), player.getZ(), 2.5f, false, Level.ExplosionInteraction.BLOCK);
                     player.hurt(ModDamageSources.getTachyonDamage(player.level()), 12.0f);
@@ -143,18 +146,30 @@ public class PlayerEnergy {
             }
         }
 
+        // ОНОВЛЕНА РЕГЕНЕРАЦІЯ
         if (player.tickCount % 20 == 0 && !regenBlocked) {
             int maxE = getMaxEnergy();
+            // Початковий цільовий рівень (таргет)
             int target = (this.level <= TacionianConfig.NOVICE_LEVEL_THRESHOLD.get()) ? (int)(maxE * 0.85f) : maxE;
+
+            // Шукаємо стабілізатор в інвентарі для корекції ліміту
             for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
                 ItemStack s = player.getInventory().getItem(i);
                 if (s.getItem() instanceof EnergyStabilizerItem) {
                     int mode = s.getOrCreateTag().getInt("Mode");
-                    if (mode == 3 && this.level > TacionianConfig.NOVICE_LEVEL_THRESHOLD.get()) target = maxE * 2;
-                    else target = Math.min(target, (maxE * EnergyStabilizerItem.getThresholdForMode(mode)) / 100);
-                    break;
+                    // Якщо режим Unrestricted (3) - дозволяємо реген до 200%
+                    if (mode == 3 && this.level > TacionianConfig.NOVICE_LEVEL_THRESHOLD.get()) {
+                        target = maxE * 2;
+                    } else {
+                        // Якщо інші режими - обмежуємо згідно з порогом режиму (напр. 75%, 40%, 15%)
+                        int threshold = EnergyStabilizerItem.getThresholdForMode(mode);
+                        target = (maxE * threshold) / 100;
+                    }
+                    break; // Пріоритет першому знайденому стабілізатору
                 }
             }
+
+            // Якщо енергія нижче таргету - додаємо енергію
             if (this.energy < target) {
                 if (receiveEnergyPure(getRegenRate(), false) > 0) this.sync(serverPlayer);
             }
@@ -165,7 +180,6 @@ public class PlayerEnergy {
 
     private void applyTurboEffects(ServerPlayer player, float ratio) {
         if (player.tickCount % 20 == 0) {
-            // Низьке гудіння для турбо-аури
             player.level().playSound(null, player.blockPosition(), ModSounds.TACHYON_HUM.get(), SoundSource.PLAYERS, 0.35f, 0.6f);
         }
         double range = 1.0 + (ratio * 2.5);
