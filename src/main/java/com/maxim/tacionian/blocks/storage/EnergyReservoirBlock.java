@@ -1,3 +1,21 @@
+/*
+ *   Copyright (C) 2026 Enotien (tacionian mod)
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package com.maxim.tacionian.blocks.storage;
 
 import com.maxim.tacionian.api.events.TachyonWasteEvent;
@@ -6,6 +24,7 @@ import com.maxim.tacionian.register.ModBlockEntities;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -101,8 +120,13 @@ public class EnergyReservoirBlock extends BaseEntityBlock {
             if (be instanceof EnergyReservoirBlockEntity reservoir) {
                 int leftover = reservoir.getEnergy();
                 if (leftover > 0 && !level.isClientSide) {
-                    // Енергія вивітрюється у світ, створюючи умови для майбутніх хмар
+                    // Викидаємо івент для аддонів (хмари)
                     MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, leftover));
+
+                    // Візуальне розсіювання енергії
+                    ((ServerLevel)level).sendParticles(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK,
+                            pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                            15, 0.3, 0.3, 0.3, 0.1);
                 }
             }
             super.onRemove(state, level, pos, newState, isMoving);

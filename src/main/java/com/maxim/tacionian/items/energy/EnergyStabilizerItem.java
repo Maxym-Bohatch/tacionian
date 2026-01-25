@@ -1,3 +1,21 @@
+/*
+ *   Copyright (C) 2026 Enotien (tacionian mod)
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package com.maxim.tacionian.items.energy;
 
 import com.maxim.tacionian.api.events.TachyonWasteEvent;
@@ -19,24 +37,32 @@ import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.common.MinecraftForge;
 import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 
 public class EnergyStabilizerItem extends Item {
-    public EnergyStabilizerItem(Properties props) { super(props.stacksTo(1)); }
+    public EnergyStabilizerItem(Properties props) {
+        super(props.stacksTo(1).rarity(Rarity.RARE));
+    }
 
     @Override
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
         if (!level.isClientSide && entity instanceof ServerPlayer player) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
-                // Предмет у кишені дає знати HUD, що стабілізація підключена
+                // Статус дистанційної стабілізації (захист від вибуху на низьких %)
                 pEnergy.setRemoteNoDrain(true);
 
-                int mode = stack.getOrCreateTag().getInt("Mode");
+                // В інвентарі фізика ПРАЦЮЄ (pushback активний), щоб гравець міг перевантажуватися
+                pEnergy.setPhysicsDisabled(false);
 
-                // ГОЛОВНА ЗМІНА:
-                // Якщо режим 3, ми НЕ блокуємо регенерацію. Гравець може вільно заряджатися до 200%.
-                // В інших режимах (0,1,2) предмет працює як пасивний обмежувач.
-                pEnergy.setRegenBlocked(mode != 3);
+                int mode = stack.getOrCreateTag().getInt("Mode");
+                int currentE = pEnergy.getEnergy();
+                int maxE = pEnergy.getMaxEnergy();
+
+                // Блокуємо регенерацію тільки в обмежених режимах
+                int threshold = (maxE * getThresholdForMode(mode)) / 100;
+                boolean shouldBlock = (mode != 3) && (currentE >= threshold);
+                pEnergy.setRegenBlocked(shouldBlock);
 
                 if (level.getGameTime() % 20 == 0) pEnergy.sync(player);
             });
@@ -46,10 +72,10 @@ public class EnergyStabilizerItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
+
         if (player.isShiftKeyDown()) {
             int mode = (stack.getOrCreateTag().getInt("Mode") + 1) % 4;
             stack.getOrCreateTag().putInt("Mode", mode);
-
             level.playSound(null, player.blockPosition(), ModSounds.MODE_SWITCH.get(), SoundSource.PLAYERS, 0.6f, 0.8f + (mode * 0.1f));
 
             if (!level.isClientSide) {
@@ -57,6 +83,7 @@ public class EnergyStabilizerItem extends Item {
             }
             return InteractionResultHolder.success(stack);
         }
+
         player.startUsingItem(hand);
         return InteractionResultHolder.consume(stack);
     }
@@ -65,36 +92,43 @@ public class EnergyStabilizerItem extends Item {
     public void onUseTick(Level level, LivingEntity entity, ItemStack stack, int count) {
         if (!level.isClientSide && entity instanceof ServerPlayer player) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
-                int mode = stack.getOrCreateTag().getInt("Mode");
+                // ПРИ ПРОВЕДЕННІ СТАБІЛІЗАЦІЇ (ПКМ) — Вимикаємо відштовхування!
+                pEnergy.setPhysicsDisabled(true);
 
-                // ПОРІГ: В 3-му режимі при затисканні ПКМ поріг стає 0 (екстрений злив усього)
-                int thresholdValue = (mode == 3) ? 0 : (pEnergy.getMaxEnergy() * getThresholdForMode(mode)) / 100;
+                int mode = stack.getOrCreateTag().getInt("Mode");
+                int maxE = pEnergy.getMaxEnergy();
+                int thresholdValue = (mode == 3) ? 0 : (maxE * getThresholdForMode(mode)) / 100;
 
                 if (pEnergy.getEnergy() > thresholdValue) {
-                    // Очищення дебафів
+                    // 1. Очищення дебафів
                     if (player.tickCount % 10 == 0) {
-                        player.getActiveEffects().stream().filter(e -> !e.getEffect().isBeneficial()).findFirst().ifPresent(effect -> {
-                            player.removeEffect(effect.getEffect());
-                            pEnergy.extractEnergyPure(150, false);
-                            level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.GENERIC_EXTINGUISH_FIRE, SoundSource.PLAYERS, 0.6f, 1.2f);
-                        });
+                        player.getActiveEffects().stream()
+                                .filter(e -> !e.getEffect().isBeneficial())
+                                .findFirst().ifPresent(effect -> {
+                                    player.removeEffect(effect.getEffect());
+                                    pEnergy.extractEnergyPure(200, false);
+                                    level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                                            SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 0.4f, 1.5f);
+                                });
                     }
 
-                    // Злиття енергії
+                    // 2. Злив енергії
                     int excess = pEnergy.getEnergy() - thresholdValue;
-                    // В Unrestricted (3) злиття йде швидше (екстрена ситуація)
-                    int toDrain = (mode == 3) ? 100 + (excess / 6) : 50 + (excess / 8);
+                    int toDrain = (mode == 3) ? 120 + (excess / 5) : 60 + (excess / 8);
 
                     pEnergy.extractEnergyPure(toDrain, false);
+                    // Викидаємо енергію в атмосферу для аддонів
                     MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, player.blockPosition(), toDrain));
 
+                    // 3. Ефекти та звуки
                     if (count % 5 == 0) {
-                        float pitch = (mode == 3) ? 0.9f : 1.4f;
-                        level.playSound(null, player.blockPosition(), ModSounds.TACHYON_HUM.get(), SoundSource.PLAYERS, 0.2f, pitch);
+                        float pitch = (mode == 3) ? 0.8f : 1.3f;
+                        level.playSound(null, player.blockPosition(), ModSounds.TACHYON_HUM.get(), SoundSource.PLAYERS, 0.25f, pitch);
 
-                        // Спецефекти
-                        var particle = (mode == 3) ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.ELECTRIC_SPARK;
-                        ((ServerLevel)level).sendParticles(particle, player.getX(), player.getY() + 1.2, player.getZ(), 5, 0.1, 0.1, 0.1, 0.05);
+                        var particle = (mode == 3) ? ParticleTypes.SOUL : ParticleTypes.ELECTRIC_SPARK;
+                        ((ServerLevel)level).sendParticles(particle,
+                                player.getX(), player.getY() + 1.2, player.getZ(),
+                                3, 0.2, 0.2, 0.2, 0.02);
                     }
                     pEnergy.sync(player);
                 }
@@ -102,8 +136,24 @@ public class EnergyStabilizerItem extends Item {
         }
     }
 
+    // Скидаємо статус вимкненої фізики, коли гравець перестав тиснути ПКМ
+    @Override
+    public void releaseUsing(ItemStack stack, Level level, LivingEntity entity, int timeLeft) {
+        if (!level.isClientSide && entity instanceof ServerPlayer player) {
+            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
+                pEnergy.setPhysicsDisabled(false);
+                pEnergy.sync(player);
+            });
+        }
+    }
+
     public static int getThresholdForMode(int mode) {
-        return switch (mode) { case 0 -> 75; case 1 -> 40; case 2 -> 15; default -> 0; };
+        return switch (mode) {
+            case 0 -> 75;
+            case 1 -> 40;
+            case 2 -> 15;
+            default -> 100;
+        };
     }
 
     private Component getModeName(int mode) {
@@ -115,9 +165,11 @@ public class EnergyStabilizerItem extends Item {
         };
     }
 
-    @Override public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+    @Override
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         int mode = stack.hasTag() ? stack.getTag().getInt("Mode") : 0;
         tooltip.add(Component.translatable("tooltip.tacionian.energy_stabilizer.desc").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable("tooltip.tacionian.energy_stabilizer.usage").withStyle(ChatFormatting.DARK_AQUA));
         tooltip.add(Component.translatable("tooltip.tacionian.energy_stabilizer.mode").append(": ").append(getModeName(mode)));
     }
 

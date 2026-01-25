@@ -1,3 +1,21 @@
+/*
+ *   Copyright (C) 2026 Enotien (tacionian mod)
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package com.maxim.tacionian.blocks;
 
 import com.maxim.tacionian.api.energy.ITachyonStorage;
@@ -26,7 +44,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class StabilizationPlateBlockEntity extends BlockEntity implements ITachyonStorage {
     private int storedEnergy = 0;
-    private final int MAX_CAPACITY = 10000;
+    private final int MAX_CAPACITY = 20000; // Трохи збільшив буфер плити
     private int currentMode = 0;
 
     public StabilizationPlateBlockEntity(BlockPos pos, BlockState state) {
@@ -46,94 +64,95 @@ public class StabilizationPlateBlockEntity extends BlockEntity implements ITachy
         AABB area = new AABB(pos.above());
         level.getEntitiesOfClass(ServerPlayer.class, area).forEach(player -> {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
+                // Активуємо статус стабілізації для гравця
                 pEnergy.setPlateStabilized(true);
+
+                // Блокуємо регенерацію тільки в безпечних режимах, щоб вона не заважала стабілізації
+                // В режимі Unrestricted (3) регенерація дозволена до 200%
                 pEnergy.setRegenBlocked(be.currentMode != 3);
 
-                int thresholdPercent = switch (be.currentMode) {
-                    case 0 -> 75;
-                    case 1 -> 40;
-                    case 2 -> 15;
-                    case 3 -> 205; // В Unrestricted дозволяємо до 205%
-                    default -> 100; // Стандартний поріг
-                };
+                int maxE = pEnergy.getMaxEnergy();
+                int currentE = pEnergy.getEnergy();
 
-                int effectiveThreshold = player.isCrouching() ? 0 : (pEnergy.getMaxEnergy() * thresholdPercent) / 100;
+                // Визначаємо поріг, вище якого плита почне "рятувати" гравця (викачувати енергію)
+                int safetyThreshold = (be.currentMode == 3) ? maxE * 2 : maxE;
 
-                int actuallyExtracted = 0; // Змінна для відстеження кількості викачаної енергії
-                if (pEnergy.getEnergy() > effectiveThreshold) {
-                    int excess = pEnergy.getEnergy() - effectiveThreshold;
-                    int drainRate = (be.currentMode == 3 && player.isCrouching()) ? 80 : 40;
+                // Якщо гравець затиснув Shift — викачуємо все.
+                // Якщо ні — викачуємо тільки те, що вище порогу безпеки.
+                boolean isManualDrain = player.isCrouching();
+                int targetEnergy = isManualDrain ? 0 : safetyThreshold;
+
+                int actuallyExtracted = 0;
+                if (currentE > targetEnergy) {
+                    int excess = currentE - targetEnergy;
+                    // Швидкість викачування залежить від того, наскільки все погано
+                    int drainRate = isManualDrain ? 80 : 40;
                     int toExtract = drainRate + (excess / 10);
 
-                    actuallyExtracted = pEnergy.extractEnergyPure(toExtract, false); // Зберігаємо результат
+                    actuallyExtracted = pEnergy.extractEnergyPure(toExtract, false);
                     int accepted = be.receiveTacionEnergy(actuallyExtracted, false);
 
-                    if (level.getGameTime() % 10 == 0) {
-                        float pitch = player.isCrouching() ? 0.7f : 1.2f;
-                        level.playSound(null, pos, ModSounds.TACHYON_HUM.get(), SoundSource.BLOCKS, 0.25f, pitch);
-
-                        if (actuallyExtracted > 0) {
-                            level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.2f, 1.4f);
-                        }
+                    // Звуковий супровід
+                    if (level.getGameTime() % 10 == 0 && actuallyExtracted > 0) {
+                        float pitch = isManualDrain ? 0.7f : 1.1f;
+                        level.playSound(null, pos, ModSounds.TACHYON_HUM.get(), SoundSource.BLOCKS, 0.2f, pitch);
                     }
 
+                    // Якщо внутрішній буфер плити повний, енергія "викидається" в атмосферу (Waste Event)
                     if (accepted < actuallyExtracted) {
                         MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, actuallyExtracted - accepted));
                     }
+
                     pEnergy.sync(player);
                     be.setChanged();
                 }
 
-                // --- НОВИЙ КОД ДЛЯ ВІЗУАЛЬНОГО ЕФЕКТУ (ПРОМІНЬ) ---
-                if (actuallyExtracted > 0 || (pEnergy.getEnergy() < pEnergy.getMaxEnergy() * thresholdPercent / 100 && be.currentMode == 3 && !player.isCrouching())) {
-                    // Умовно вважаємо, що активна взаємодія, якщо або енергія викачується,
-                    // або гравець на плиті в режимі 3 (Unrestricted) і заряджається
-
-                    Vec3 playerFeetPos = player.position().add(0, -0.05, 0); // Трохи нижче ніг гравця
-                    Vec3 plateCenterPos = Vec3.atCenterOf(pos).add(0, 0.1, 0); // Центр плити, трохи вище
-
-                    double distance = plateCenterPos.distanceTo(playerFeetPos);
-                    // Кількість частинок залежить від відстані та "інтенсивності"
-                    int particlesPerTick = Math.max(1, (int)(distance * 1.5));
-
-                    // Генеруємо частинки вздовж лінії між плитою та гравцем
-                    for (int i = 0; i < particlesPerTick; i++) {
-                        double progress = (double)i / particlesPerTick;
-                        double x = plateCenterPos.x + (playerFeetPos.x - plateCenterPos.x) * progress;
-                        double y = plateCenterPos.y + (playerFeetPos.y - plateCenterPos.y) * progress;
-                        double z = plateCenterPos.z + (playerFeetPos.z - plateCenterPos.z) * progress;
-
-                        // Додаємо випадковість для "об'єму" променя
-                        double offsetX = (level.getRandom().nextDouble() - 0.5) * 0.2;
-                        double offsetY = (level.getRandom().nextDouble() - 0.5) * 0.2;
-                        double offsetZ = (level.getRandom().nextDouble() - 0.5) * 0.2;
-
-                        ((ServerLevel)level).sendParticles(
-                                ParticleTypes.ELECTRIC_SPARK,
-                                x + offsetX, y + offsetY, z + offsetZ,
-                                1, 0, 0, 0, 0
-                        );
-                    }
+                // --- ВІЗУАЛЬНИЙ ЕФЕКТ ПРОМЕНЯ ---
+                // Промінь активний при викачуванні АБО якщо енергія в "турбо-зоні" (>100% в Unrestricted)
+                if (actuallyExtracted > 0 || (currentE > maxE && be.currentMode == 3)) {
+                    spawnBeamParticles(level, pos, player);
                 }
-                // --- КІНЕЦЬ НОВОГО КОДУ ДЛЯ ВІЗУАЛЬНОГО ЕФЕКТУ ---
-
             });
         });
 
-        // Передача енергії з буфера плити в сусідні блоки (кабелі/сховища)
+        // Передача накопиченої енергії з плити в мережу (кабелі, сховища)
         if (be.storedEnergy > 0) {
-            for (Direction dir : Direction.values()) {
-                if (be.storedEnergy <= 0) break;
-                BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
-                if (neighbor != null && !(neighbor instanceof StabilizationPlateBlockEntity)) {
-                    neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
-                        int pushed = cap.receiveTacionEnergy(Math.min(be.storedEnergy, 500), false);
-                        if (pushed > 0) {
-                            be.storedEnergy -= pushed;
-                            be.setChanged();
-                        }
-                    });
-                }
+            pushEnergyToNeighbors(level, pos, be);
+        }
+    }
+
+    private static void spawnBeamParticles(Level level, BlockPos pos, ServerPlayer player) {
+        Vec3 playerFeetPos = player.position().add(0, 0.1, 0);
+        Vec3 plateCenterPos = Vec3.atCenterOf(pos).add(0, 0.1, 0);
+        double distance = plateCenterPos.distanceTo(playerFeetPos);
+        int particles = Math.max(2, (int)(distance * 2));
+
+        for (int i = 0; i < particles; i++) {
+            double prg = (double)i / particles;
+            double x = plateCenterPos.x + (playerFeetPos.x - plateCenterPos.x) * prg;
+            double y = plateCenterPos.y + (playerFeetPos.y - plateCenterPos.y) * prg;
+            double z = plateCenterPos.z + (playerFeetPos.z - plateCenterPos.z) * prg;
+
+            ((ServerLevel)level).sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                    x + (level.random.nextDouble()-0.5)*0.15,
+                    y + (level.random.nextDouble()-0.5)*0.15,
+                    z + (level.random.nextDouble()-0.5)*0.15,
+                    1, 0, 0, 0, 0.02);
+        }
+    }
+
+    private static void pushEnergyToNeighbors(Level level, BlockPos pos, StabilizationPlateBlockEntity be) {
+        for (Direction dir : Direction.values()) {
+            if (be.storedEnergy <= 0) break;
+            BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+            if (neighbor != null && !(neighbor instanceof StabilizationPlateBlockEntity)) {
+                neighbor.getCapability(ModCapabilities.TACHYON_STORAGE, dir.getOpposite()).ifPresent(cap -> {
+                    int pushed = cap.receiveTacionEnergy(Math.min(be.storedEnergy, 1000), false);
+                    if (pushed > 0) {
+                        be.storedEnergy -= pushed;
+                        be.setChanged();
+                    }
+                });
             }
         }
     }

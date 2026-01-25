@@ -1,3 +1,21 @@
+/*
+ *   Copyright (C) 2026 Enotien (tacionian mod)
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package com.maxim.tacionian.blocks.charger;
 
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
@@ -21,6 +39,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraftforge.common.MinecraftForge;
 import org.jetbrains.annotations.Nullable;
 
 public class TachyonChargerBlock extends BaseEntityBlock {
@@ -84,5 +103,22 @@ public class TachyonChargerBlock extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
         return InteractionResult.SUCCESS;
+    }
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock())) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof TachyonChargerBlockEntity charger) {
+                int leftover = charger.getEnergy();
+                if (leftover > 0 && !level.isClientSide) {
+                    MinecraftForge.EVENT_BUS.post(new com.maxim.tacionian.api.events.TachyonWasteEvent(level, pos, leftover));
+
+                    ((net.minecraft.server.level.ServerLevel)level).sendParticles(net.minecraft.core.particles.ParticleTypes.POOF,
+                            pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+                            10, 0.2, 0.2, 0.2, 0.05);
+                }
+            }
+            super.onRemove(state, level, pos, newState, isMoving);
+        }
     }
 }

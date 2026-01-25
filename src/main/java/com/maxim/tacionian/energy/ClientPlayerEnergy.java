@@ -1,54 +1,47 @@
+/*
+ *   Copyright (C) 2026 Enotien (tacionian mod)
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package com.maxim.tacionian.energy;
 
 public class ClientPlayerEnergy {
-    private static int energy, level;
+    private static int energy, level, maxEnergy;
     private static float experience;
     private static boolean disconnected, regenBlocked, interfaceStabilized, plateStabilized, remoteNoDrain;
     private static boolean initialized = false;
 
-    public static void update(int en, int lvl, float exp, boolean disc, boolean regen, boolean inter, boolean plate, boolean remote) {
-        energy = en;
-        level = lvl;
-        experience = exp;
-        disconnected = disc;
-        regenBlocked = regen;
-        interfaceStabilized = inter;
-        plateStabilized = plate;
-        remoteNoDrain = remote;
+    public static void update(int en, int lvl, int maxEn, float exp, boolean disc, boolean regen, boolean inter, boolean plate, boolean remote) {
+        energy = en; level = lvl; maxEnergy = maxEn; experience = exp;
+        disconnected = disc; regenBlocked = regen;
+        interfaceStabilized = inter; plateStabilized = plate; remoteNoDrain = remote;
         initialized = true;
     }
 
     public static boolean hasData() { return initialized; }
     public static int getEnergy() { return energy; }
+    public static int getMaxEnergy() { return maxEnergy > 0 ? maxEnergy : 1000; }
     public static int getLevel() { return level; }
-    public static float getExperience() { return experience; }
-
-    // Визначає колір для тексту енергії в HUD
-    public static int getHUDColor() {
-        if (plateStabilized) return 0x55FF55; // Світло-зелений (Стабілізація)
-        if (energy > getMaxEnergy()) return 0xFF5555; // Червоний (Перевантаження)
-        return 0x55FFFF; // Блакитний (Норма)
-    }
-
-    public static float getRatio() {
-        return (float) energy / getMaxEnergy();
-    }
-
-    public static int getMaxEnergy() {
-        return 1000 + (Math.max(1, level) - 1) * 500;
-    }
-
-    public static int getRequiredExp() {
-        return level < 20 ? 500 + (level * 100) : 2500 + (level * 250);
-    }
-
+    public static float getRatio() { return maxEnergy > 0 ? (float) energy / maxEnergy : 0; }
     public static float getExpRatio() {
-        int req = getRequiredExp();
+        int req = level < 20 ? 500 + (level * 100) : 2500 + (level * 250);
         return req > 0 ? (float) experience / req : 0;
     }
 
     public static boolean isInterfaceStabilized() { return interfaceStabilized; }
     public static boolean isPlateStabilized() { return plateStabilized; }
     public static boolean isRemoteNoDrain() { return remoteNoDrain; }
-    public static boolean isDisconnected() { return disconnected; }
 }

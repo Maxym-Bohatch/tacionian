@@ -1,10 +1,28 @@
+/*
+ *   Copyright (C) 2026 Enotien (tacionian mod)
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package com.maxim.tacionian.client.hud;
 
 import com.maxim.tacionian.api.effects.ITachyonEffect;
 import com.maxim.tacionian.energy.ClientPlayerEnergy;
 import com.maxim.tacionian.config.TacionianConfig;
 import com.maxim.tacionian.register.ModBlocks;
-import com.maxim.tacionian.register.ModItems; // Переконайся, що імпорт є!
+import com.maxim.tacionian.register.ModItems;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -21,6 +39,10 @@ public class EnergyHudOverlay {
 
     public static final IGuiOverlay HUD = (gui, graphics, partialTick, width, height) -> {
         Minecraft mc = Minecraft.getInstance();
+
+        // ВИПРАВЛЕННЯ: Тепер HUD не заважає дивитися FPS (F3)
+        if (mc.options.renderDebug) return;
+
         if (mc.level == null || mc.player == null || mc.player.isSpectator()) return;
         if (!ClientPlayerEnergy.hasData()) return;
 
@@ -36,13 +58,13 @@ public class EnergyHudOverlay {
             graphics.pose().translate((mc.level.random.nextFloat() - 0.5f) * shake, (mc.level.random.nextFloat() - 0.5f) * shake, 0);
         }
 
-        // 2. ТЕКСТ (Рівень та Енергія) - ПОВЕРНУТО
+        // 2. ТЕКСТ (Рівень та Енергія)
         int baseColor = EnergyColorHelper.getColor();
 
         // Текст зліва (Рівень)
         graphics.drawString(mc.font, Component.translatable("hud.tacionian.level", ClientPlayerEnergy.getLevel()), x, y - 11, 0x00FBFF, true);
 
-        // Текст справа (1000 / 1000 Tx)
+        // Текст справа (Енергія)
         String energyInfo = ClientPlayerEnergy.getEnergy() + " / " + ClientPlayerEnergy.getMaxEnergy() + " Tx";
         graphics.drawString(mc.font, energyInfo, x + barWidth - mc.font.width(energyInfo), y - 11, 0xFFFFFF, true);
 
@@ -55,9 +77,9 @@ public class EnergyHudOverlay {
             graphics.fillGradient(x, y, x + fillWidth, y + 10, baseColor, EnergyColorHelper.darkenColor(baseColor, 0.6f));
         }
 
-        // 4. СМУЖКА ДОСВІДУ (Золота лінія знизу) - ВИПРАВЛЕНО
+        // 4. СМУЖКА ДОСВІДУ (Золота лінія знизу)
         int expY = y + 12;
-        graphics.fill(x, expY, x + barWidth, expY + 2, 0xFF222222); // Фон смужки досвіду
+        graphics.fill(x, expY, x + barWidth, expY + 2, 0xFF222222);
 
         float expRatio = ClientPlayerEnergy.getExpRatio();
         int expWidth = (int)(barWidth * Math.min(expRatio, 1.0f));
@@ -66,7 +88,7 @@ public class EnergyHudOverlay {
             graphics.fill(x, expY, x + expWidth, expY + 2, 0xFFFFAA00);
         }
 
-        // 5. ІКОНКИ
+        // 5. ІКОНКИ СТАТУСУ
         int iconX = x + barWidth + 6;
 
         if (ClientPlayerEnergy.isInterfaceStabilized()) {
@@ -77,7 +99,6 @@ public class EnergyHudOverlay {
             renderStatusSlot(graphics, iconX, y - 1, PLATE_ICON);
             iconX += 15;
         }
-        // Іконка стабілізатора (предмет в руці)
         if (ClientPlayerEnergy.isRemoteNoDrain()) {
             renderStatusSlot(graphics, iconX, y - 1, STABILIZER_ICON);
             iconX += 15;
@@ -96,11 +117,12 @@ public class EnergyHudOverlay {
         graphics.pose().popPose();
     };
 
+    // ПОВЕРНУТО: Масштабування до 0.5x, щоб іконки були акуратними
     private static void renderStatusSlot(GuiGraphics graphics, int x, int y, ItemStack stack) {
         drawSlotBackground(graphics, x, y);
         graphics.pose().pushPose();
-        graphics.pose().translate(x + 2, y + 2, 0);
-        graphics.pose().scale(0.5f, 0.5f, 0.5f);
+        graphics.pose().translate(x + 2, y + 2, 0); // Центрування в слоті 12x12
+        graphics.pose().scale(0.5f, 0.5f, 0.5f);    // Той самий розмір
         graphics.renderFakeItem(stack, 0, 0);
         graphics.pose().popPose();
     }

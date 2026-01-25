@@ -1,3 +1,21 @@
+/*
+ *   Copyright (C) 2026 Enotien (tacionian mod)
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package com.maxim.tacionian.command;
 
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
@@ -122,11 +140,14 @@ public class EnergyCommand {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
                 energy.setLevel(value);
                 energy.setExperience(0);
+                // Встановлюємо енергію на 50% від нового максимуму
                 energy.setEnergy(energy.getMaxEnergy() / 2);
                 energy.sync(player);
             });
         }
-        // Фікс відображення: передаємо значення рівня першим, кількість гравців другим
+
+        // ВАЖЛИВО: Передаємо спочатку значення рівня (value), потім кількість гравців (size)
+        // У файлі перекладу це має бути: "... рівень %1$s для %2$s гравців"
         source.sendSuccess(() -> Component.translatable("command.tacionian.level.set.success", value, targets.size()), true);
         return targets.size();
     }
