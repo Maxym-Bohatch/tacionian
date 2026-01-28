@@ -1,19 +1,10 @@
 /*
- *   Copyright (C) 2026 Enotien (tacionian mod)
+ * Copyright (C) 2026 Enotien (tacionian mod)
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  */
 
 package com.maxim.tacionian.energy.control;
@@ -29,31 +20,49 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class EnergyControlResolver {
     public static void resolve(ServerPlayer player, PlayerEnergy energy) {
+        // 1. Перевірка стабілізаторів у інвентарі
         for (ItemStack stack : player.getInventory().items) {
             if (stack.getItem() instanceof EnergyStabilizerItem) {
                 energy.setStabilized(true);
+
+                // Отримуємо режим стабілізатора:
+                // 0: Safe (75%), 1: Balanced (40%), 2: Performance (15%), 3: Unrestricted (0%)
                 int mode = stack.getOrCreateTag().getInt("Mode");
-                int threshold = (mode == 0) ? 75 : (mode == 1) ? 40 : (mode == 2) ? 15 : 0;
-                if (energy.getEnergyPercent() > threshold) energy.setRemoteNoDrain(true);
+                int threshold = switch (mode) {
+                    case 0 -> 75;
+                    case 1 -> 40;
+                    case 2 -> 15;
+                    default -> 0;
+                };
+
+                // Якщо енергія вища за поріг режиму, активуємо "NoDrain" (заборона пасивного витрачання)
+                if (energy.getEnergyPercent() > threshold) {
+                    energy.setRemoteNoDrain(true);
+                }
                 break;
             }
         }
 
+        // 2. Перевірка плити під ногами
         BlockPos pos = player.blockPosition().below();
         BlockState state = player.level().getBlockState(pos);
         if (state.is(ModBlocks.STABILIZATION_PLATE.get())) {
-            energy.setPlateStabilized(true); // ВИПРАВЛЕНО
+            energy.setPlateStabilized(true);
+
+            // Якщо гравець присів на плиті — швидко зливаємо енергію в "землю" (очищення)
             if (player.isCrouching() && energy.getEnergyPercent() > 5) {
                 energy.extractEnergyPure(40, false);
                 if (player.tickCount % 4 == 0) {
-                    player.serverLevel().sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY(), player.getZ(), 3, 0.1, 0.1, 0.1, 0.01);
+                    player.serverLevel().sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                            player.getX(), player.getY(), player.getZ(),
+                            3, 0.1, 0.1, 0.1, 0.01);
                 }
             }
         }
 
-        boolean isAnyStabilized = energy.isStabilized() || energy.isInterfaceStabilized() || energy.isPlateStabilized();
-        if (isAnyStabilized && energy.isOverloaded()) {
-            energy.setEnergy((int)(energy.getMaxEnergy() * 0.95f));
-        }
+        // --- ВИПРАВЛЕННЯ: Жорсткий ліміт видалено ---
+        // Раніше тут був код, який скидав енергію на 95%.
+        // Тепер ми дозволяємо системі PlayerEnergy.tick самостійно вирішувати,
+        // який ліміт використовувати (безпечні 99% чи стабілізовані 199%).
     }
 }

@@ -44,7 +44,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class StabilizationPlateBlockEntity extends BlockEntity implements ITachyonStorage {
     private int storedEnergy = 0;
-    private final int MAX_CAPACITY = 20000; // Трохи збільшив буфер плити
+    private final int MAX_CAPACITY = 500; // Трохи збільшив буфер плити
     private int currentMode = 0;
 
     public StabilizationPlateBlockEntity(BlockPos pos, BlockState state) {

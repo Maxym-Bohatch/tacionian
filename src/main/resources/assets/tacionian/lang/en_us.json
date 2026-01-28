@@ -49,17 +49,17 @@
   "message.tacionian.charged": "§aCore charged: +%s Tx",
   "message.tacionian.discharged": "§cCore discharged: -%s Tx",
   "message.tacionian.safety_limit": "Safety system: critically low energy level!",
-
+  "message.tacionian.energy_depleted": "§6⚠ Warning: Tachyon Core is exhausted! Degradation of experience begins.",
   "mode.tacionian.safe": "§aEco Mode (75%)",
   "mode.tacionian.balanced": "§eBalanced (40%)",
   "mode.tacionian.performance": "§6Performance (15%)",
-  "mode.tacionian.unrestricted": "§4§lUNRESTRICTED (200%)",
+  "mode.tacionian.unrestricted": "§4§lUNRESTRICTED",
 
-  "hud.tacionian.level": "LVL %s",
+  "hud.tacionian.level": "Level %s",
   "hud.tacionian.energy_unit": "Tx",
   "tooltip.tacionian.active": "§aSTATUS: ACTIVE",
   "tooltip.tacionian.inactive": "§cSTATUS: INACTIVE",
-  "death.attack.tacionian.energy": "%1$s's core has imploded due to energy overload",
+  "death.attack.tachyon_collapse": "%1$s's core has imploded due to energy overload",
   "death.attack.tacionian.energy.player": "%1$s was vaporized by %2$s's tachyon burst",
 
   "status.tacionian.active": "§aACTIVE",

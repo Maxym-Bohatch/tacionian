@@ -1,19 +1,6 @@
 /*
- *   Copyright (C) 2026 Enotien (tacionian mod)
- *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
+ * Copyright (C) 2026 Enotien (tacionian mod)
+ * License: GPLv3
  */
 
 package com.maxim.tacionian.command;
@@ -50,12 +37,6 @@ public class EnergyCommand {
                                                 .executes(context -> modifyEnergy(context.getSource(), EntityArgument.getPlayers(context, "targets"), IntegerArgumentType.getInteger(context, "amount"), "add")))
                                 )
                         )
-                        .then(Commands.literal("remove")
-                                .then(Commands.argument("targets", EntityArgument.players())
-                                        .then(Commands.argument("amount", IntegerArgumentType.integer(1))
-                                                .executes(context -> modifyEnergy(context.getSource(), EntityArgument.getPlayers(context, "targets"), IntegerArgumentType.getInteger(context, "amount"), "remove")))
-                                )
-                        )
                 )
 
                 // --- РІВЕНЬ ---
@@ -69,35 +50,26 @@ public class EnergyCommand {
                         )
                 )
 
-                // --- ДОСВІД ---
-                .then(Commands.literal("experience")
-                        .then(Commands.literal("add")
-                                .then(Commands.argument("targets", EntityArgument.players())
-                                        .then(Commands.argument("amount", IntegerArgumentType.integer(1))
-                                                .executes(context -> modifyExp(context.getSource(), EntityArgument.getPlayers(context, "targets"), IntegerArgumentType.getInteger(context, "amount"), "add")))
-                                )
-                        )
-                        .then(Commands.literal("set")
-                                .then(Commands.argument("targets", EntityArgument.players())
-                                        .then(Commands.argument("amount", IntegerArgumentType.integer(0))
-                                                .executes(context -> modifyExp(context.getSource(), EntityArgument.getPlayers(context, "targets"), IntegerArgumentType.getInteger(context, "amount"), "set")))
-                                )
-                        )
-                )
-
-                // --- ІНФО ---
-                .then(Commands.literal("info")
-                        .then(Commands.argument("target", EntityArgument.player())
-                                .executes(context -> showInfo(context.getSource(), EntityArgument.getPlayer(context, "target")))
-                        )
-                )
-
                 // --- СТАНИ ---
                 .then(Commands.literal("state")
                         .then(Commands.literal("network")
                                 .then(Commands.argument("targets", EntityArgument.players())
                                         .then(Commands.argument("active", BoolArgumentType.bool())
                                                 .executes(context -> setNetworkState(context.getSource(), EntityArgument.getPlayers(context, "targets"), BoolArgumentType.getBool(context, "active")))
+                                        )
+                                )
+                        )
+                        .then(Commands.literal("wireless")
+                                .then(Commands.argument("targets", EntityArgument.players())
+                                        .then(Commands.argument("visible", BoolArgumentType.bool())
+                                                .executes(context -> setWirelessVisibility(context.getSource(), EntityArgument.getPlayers(context, "targets"), BoolArgumentType.getBool(context, "visible")))
+                                        )
+                                )
+                        )
+                        .then(Commands.literal("pushback")
+                                .then(Commands.argument("targets", EntityArgument.players())
+                                        .then(Commands.argument("enabled", BoolArgumentType.bool())
+                                                .executes(context -> setPushback(context.getSource(), EntityArgument.getPlayers(context, "targets"), BoolArgumentType.getBool(context, "enabled")))
                                         )
                                 )
                         )
@@ -110,7 +82,12 @@ public class EnergyCommand {
                         )
                 )
 
-                // --- СКИНУТИ ---
+                // --- ІНФО ТА СКИНУТИ ---
+                .then(Commands.literal("info")
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .executes(context -> showInfo(context.getSource(), EntityArgument.getPlayer(context, "target")))
+                        )
+                )
                 .then(Commands.literal("reset")
                         .then(Commands.argument("targets", EntityArgument.players())
                                 .executes(context -> resetStats(context.getSource(), EntityArgument.getPlayers(context, "targets")))
@@ -122,16 +99,12 @@ public class EnergyCommand {
     private static int modifyEnergy(CommandSourceStack source, Collection<ServerPlayer> targets, int amount, String mode) {
         for (ServerPlayer player : targets) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                int newVal = switch (mode) {
-                    case "add" -> energy.getEnergy() + amount;
-                    case "remove" -> energy.getEnergy() - amount;
-                    default -> amount;
-                };
-                energy.setEnergy(newVal);
+                if (mode.equals("add")) energy.setEnergy(energy.getEnergy() + amount);
+                else energy.setEnergy(amount);
                 energy.sync(player);
             });
         }
-        source.sendSuccess(() -> Component.translatable("command.tacionian.energy." + mode + ".success", amount, targets.size()), true);
+        source.sendSuccess(() -> Component.literal("Energy " + mode + " for " + targets.size() + " players."), true);
         return targets.size();
     }
 
@@ -140,44 +113,34 @@ public class EnergyCommand {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
                 energy.setLevel(value);
                 energy.setExperience(0);
-                // Встановлюємо енергію на 50% від нового максимуму
-                energy.setEnergy(energy.getMaxEnergy() / 2);
                 energy.sync(player);
             });
         }
-
-        // ВАЖЛИВО: Передаємо спочатку значення рівня (value), потім кількість гравців (size)
-        // У файлі перекладу це має бути: "... рівень %1$s для %2$s гравців"
-        source.sendSuccess(() -> Component.translatable("command.tacionian.level.set.success", value, targets.size()), true);
+        source.sendSuccess(() -> Component.literal("Level set to " + value + " for " + targets.size() + " players."), true);
         return targets.size();
     }
 
-    private static int modifyExp(CommandSourceStack source, Collection<ServerPlayer> targets, int amount, String mode) {
+    private static int setWirelessVisibility(CommandSourceStack source, Collection<ServerPlayer> targets, boolean visible) {
         for (ServerPlayer player : targets) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                if (mode.equals("add")) {
-                    energy.addExperience((float) amount, player);
-                } else {
-                    energy.setExperience(amount);
-                }
+                energy.setRemoteAccessBlocked(!visible);
                 energy.sync(player);
             });
         }
-        source.sendSuccess(() -> Component.translatable("command.tacionian.experience." + mode + ".success", amount, targets.size()), true);
+        String status = visible ? "VISIBLE" : "STEALTH";
+        source.sendSuccess(() -> Component.literal("Wireless visibility: " + status), true);
         return targets.size();
     }
 
-    private static int showInfo(CommandSourceStack source, ServerPlayer target) {
-        target.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-            source.sendSuccess(() -> Component.translatable("command.tacionian.info.header", target.getDisplayName()), false);
-            source.sendSuccess(() -> Component.translatable("command.tacionian.info.level", energy.getLevel()), false);
-            source.sendSuccess(() -> Component.translatable("command.tacionian.info.energy", energy.getEnergy(), energy.getMaxEnergy()), false);
-            source.sendSuccess(() -> Component.translatable("command.tacionian.info.exp", energy.getExperience(), energy.getRequiredExp()), false);
-
-            Component status = Component.translatable(energy.isDisconnected() ? "status.tacionian.disabled" : "status.tacionian.active");
-            source.sendSuccess(() -> Component.translatable("command.tacionian.info.status", status), false);
-        });
-        return 1;
+    private static int setPushback(CommandSourceStack source, Collection<ServerPlayer> targets, boolean enabled) {
+        for (ServerPlayer player : targets) {
+            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
+                energy.setPushbackEnabled(enabled);
+                energy.sync(player);
+            });
+        }
+        source.sendSuccess(() -> Component.literal("Pushback effect enabled: " + enabled), true);
+        return targets.size();
     }
 
     private static int setNetworkState(CommandSourceStack source, Collection<ServerPlayer> targets, boolean active) {
@@ -187,8 +150,7 @@ public class EnergyCommand {
                 energy.sync(player);
             });
         }
-        Component status = Component.translatable(active ? "status.tacionian.active" : "status.tacionian.disabled");
-        source.sendSuccess(() -> Component.translatable("command.tacionian.network.success", status), true);
+        source.sendSuccess(() -> Component.literal("Network active: " + active), true);
         return targets.size();
     }
 
@@ -199,23 +161,35 @@ public class EnergyCommand {
                 energy.sync(player);
             });
         }
-        Component status = Component.translatable(enabled ? "status.tacionian.active" : "status.tacionian.blocked");
-        source.sendSuccess(() -> Component.translatable("command.tacionian.regen.success", status), true);
+        source.sendSuccess(() -> Component.literal("Core regen enabled: " + enabled), true);
         return targets.size();
     }
 
     private static int resetStats(CommandSourceStack source, Collection<ServerPlayer> targets) {
         for (ServerPlayer player : targets) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                energy.setEnergy(0);
                 energy.setLevel(1);
+                energy.setEnergy(0);
                 energy.setExperience(0);
                 energy.setDisconnected(false);
+                energy.setRemoteAccessBlocked(false);
+                energy.setPushbackEnabled(true);
                 energy.setRegenBlocked(false);
                 energy.sync(player);
             });
         }
-        source.sendSuccess(() -> Component.translatable("command.tacionian.reset.success"), true);
+        source.sendSuccess(() -> Component.literal("All stats reset for selected players."), true);
         return targets.size();
+    }
+
+    private static int showInfo(CommandSourceStack source, ServerPlayer target) {
+        target.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
+            source.sendSuccess(() -> Component.literal("§b--- " + target.getScoreboardName() + " Tachyon Stats ---"), false);
+            source.sendSuccess(() -> Component.literal("Level: " + energy.getLevel()), false);
+            source.sendSuccess(() -> Component.literal("Energy: " + energy.getEnergy() + "/" + energy.getMaxEnergy()), false);
+            source.sendSuccess(() -> Component.literal("Stealth: " + energy.isRemoteAccessBlocked()), false);
+            source.sendSuccess(() -> Component.literal("Pushback: " + energy.isPushbackEnabled()), false);
+        });
+        return 1;
     }
 }

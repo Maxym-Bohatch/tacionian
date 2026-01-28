@@ -49,17 +49,17 @@
   "message.tacionian.charged": "§aЯдро заряжено: +%s Tx",
   "message.tacionian.discharged": "§cЯдро разряжено: -%s Tx",
   "message.tacionian.safety_limit": "Система безопасности: критически низкий уровень энергии!",
-
+  "message.tacionian.energy_depleted": "§6⚠ Внимание: Тахионное ядро исчерпано! Начинается деградация опыта.",
   "mode.tacionian.safe": "§aЭко-режим (75%)",
   "mode.tacionian.balanced": "§eСбалансированный (40%)",
   "mode.tacionian.performance": "§6Производительный (15%)",
   "mode.tacionian.unrestricted": "§4§lБЕЗЛИМИТНЫЙ (200%)",
 
-  "hud.tacionian.level": "УР %s",
+  "hud.tacionian.level": "Уровень %s",
   "hud.tacionian.energy_unit": "Tx",
   "tooltip.tacionian.active": "§aСТАТУС: АКТИВЕН",
   "tooltip.tacionian.inactive": "§cСТАТУС: НЕАКТИВЕН",
-  "death.attack.tacionian.energy": "Ядро игрока %1$s коллапсировало из-за перегрузки",
+  "death.attack.tachyon_collapse": "Ядро игрока %1$s коллапсировало из-за перегрузки",
   "death.attack.tacionian.energy.player": "%1$s был испарен тахионным всплеском игрока %2$s",
 
   "status.tacionian.active": "§aАКТИВНО",

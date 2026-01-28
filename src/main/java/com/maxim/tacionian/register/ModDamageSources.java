@@ -27,16 +27,19 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 
 public class ModDamageSources {
-    // Ресурсний ключ для нашої шкоди (має збігатися з ключем у локалізації без "death.attack.")
+    // Змінюємо "energy" на "tachyon_collapse"
     public static final ResourceKey<DamageType> TACHYON_ENERGY =
-            ResourceKey.create(Registries.DAMAGE_TYPE, new ResourceLocation("tacionian", "energy"));
+            ResourceKey.create(Registries.DAMAGE_TYPE, new ResourceLocation("tacionian", "tachyon_collapse"));
 
     public static DamageSource getTachyonDamage(Level level) {
-        // Отримуємо тип шкоди з реєстру світу
-        Holder<DamageType> holder = level.registryAccess()
-                .registryOrThrow(Registries.DAMAGE_TYPE)
-                .getHolderOrThrow(TACHYON_ENERGY);
+        var registry = level.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE);
+
+        // Шукаємо наш ключ, якщо його немає — беремо стандартний GENERIC_KILL
+        Holder<DamageType> holder = registry.getHolder(TACHYON_ENERGY).orElseGet(() ->
+                registry.getHolderOrThrow(net.minecraft.world.damagesource.DamageTypes.GENERIC_KILL)
+        );
 
         return new DamageSource(holder);
+
     }
 }

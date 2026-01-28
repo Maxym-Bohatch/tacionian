@@ -18,13 +18,11 @@
 
 package com.maxim.tacionian.energy;
 
-import com.maxim.tacionian.register.ModDamageSources;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -35,54 +33,33 @@ public class TachyonEnergyHandler {
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        // Працюємо тільки на сервері і в кінці тіку
         if (event.phase != TickEvent.Phase.END || event.player.level().isClientSide) return;
 
         ServerPlayer player = (ServerPlayer) event.player;
         player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
 
-            float ratio = (float) pEnergy.getEnergy() / pEnergy.getMaxEnergy();
+            // 1. ВИКЛИКАЄМО ГОЛОВНИЙ ТІК (Вся логіка вибухів і рівнів тепер там)
+            pEnergy.tick(player);
 
-            // 1. ПЕРЕВІРКА СТАБІЛІЗАЦІЇ (Критичний момент)
-            // Якщо енергія вище 100%, а стабілізатора/плити немає
-            if (ratio > 1.0f && !pEnergy.isPlateStabilized() && !pEnergy.isRemoteNoDrain()) {
-                // Шанс вибуху росте з кожним відсотком перевантаження
-                if (player.getRandom().nextFloat() < (ratio - 1.0f) * 0.15f) {
-                    triggerDynamicExplosion(player, ratio);
-                    return;
-                }
-                // Наносимо періодичну шкоду, якщо ще не бабахнуло
-                if (player.tickCount % 10 == 0) {
-                    player.hurt(ModDamageSources.getTachyonDamage(player.level()), ratio * 1.5f);
-                }
-            }
-
-            // 2. ДИНАМІЧНІ ЕФЕКТИ (Турбо-режим)
-            if (ratio > 1.1f) {
-                applyAura(player, ratio);
-            }
+            // 2. ВІЗУАЛЬНІ ТА ФІЗИЧНІ ЕФЕКТИ
+            float ratio = pEnergy.getEnergyFraction();
 
             if (ratio > 1.35f) {
                 applyMagnet(player);
-                applyTurboPhysics(player); // Стрибки/Левітація
+                applyTurboPhysics(player); // Повернув твою фізику
             }
 
-            if (ratio > 1.8f) {
-                applyCriticalChaos(player); // Руйнування скла/іскри
+            if (ratio > 1.7f) {
+                applyAura(player, ratio);
+                applyCriticalChaos(player);
             }
 
-            // ОЧИЩЕННЯ ПРАПОРЦІВ (Важливо!)
-            // Плита і предмет ставлять їх у true кожен тік. Якщо гравець зійшов/сховав предмет,
-            // наступного тіку тут буде false, і спрацює перевірка на вибух.
+            // 3. СКИНУТИ ТИМЧАСОВІ ПРАПОРЦІ (Оновлюються кожен тік блоками/предметами)
             pEnergy.setPlateStabilized(false);
+            pEnergy.setInterfaceStabilized(false);
             pEnergy.setRemoteNoDrain(false);
         });
-    }
-
-    private static void triggerDynamicExplosion(ServerPlayer player, float ratio) {
-        // Сила вибуху: на 110% це ~4.4, на 200% це 8.0 (як ліжко в Енді)
-        float power = 3.0f + (ratio * 2.5f);
-        player.level().explode(player, player.getX(), player.getY(), player.getZ(), power, Level.ExplosionInteraction.BLOCK);
-        player.hurt(ModDamageSources.getTachyonDamage(player.level()), Float.MAX_VALUE);
     }
 
     private static void applyAura(ServerPlayer player, float ratio) {
@@ -104,10 +81,12 @@ public class TachyonEnergyHandler {
 
     private static void applyTurboPhysics(ServerPlayer player) {
         Vec3 v = player.getDeltaMovement();
+        // Плавне падіння при перевантаженні
         if (v.y < -0.1) {
             player.setDeltaMovement(v.x, v.y * 0.8, v.z);
             player.fallDistance = 0;
         }
+        // Буст швидкості
         if (player.isSprinting()) {
             player.setDeltaMovement(v.add(player.getLookAngle().scale(0.05)));
         }
