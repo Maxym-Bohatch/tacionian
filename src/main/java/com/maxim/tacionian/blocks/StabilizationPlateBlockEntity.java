@@ -1,19 +1,6 @@
 /*
- *   Copyright (C) 2026 Enotien (tacionian mod)
- *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
+ * Copyright (C) 2026 Enotien (tacionian mod)
+ * License: GPLv3
  */
 
 package com.maxim.tacionian.blocks;
@@ -44,7 +31,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class StabilizationPlateBlockEntity extends BlockEntity implements ITachyonStorage {
     private int storedEnergy = 0;
-    private final int MAX_CAPACITY = 500; // Трохи збільшив буфер плити
+    private final int MAX_CAPACITY = 500;
     private int currentMode = 0;
 
     public StabilizationPlateBlockEntity(BlockPos pos, BlockState state) {
@@ -64,41 +51,44 @@ public class StabilizationPlateBlockEntity extends BlockEntity implements ITachy
         AABB area = new AABB(pos.above());
         level.getEntitiesOfClass(ServerPlayer.class, area).forEach(player -> {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
-                // Активуємо статус стабілізації для гравця
                 pEnergy.setPlateStabilized(true);
-
-                // Блокуємо регенерацію тільки в безпечних режимах, щоб вона не заважала стабілізації
-                // В режимі Unrestricted (3) регенерація дозволена до 200%
-                pEnergy.setRegenBlocked(be.currentMode != 3);
 
                 int maxE = pEnergy.getMaxEnergy();
                 int currentE = pEnergy.getEnergy();
 
-                // Визначаємо поріг, вище якого плита почне "рятувати" гравця (викачувати енергію)
-                int safetyThreshold = (be.currentMode == 3) ? maxE * 2 : maxE;
+                // ВИЗНАЧЕННЯ ПОРOГУ (Синхронізація з ядром та локалізацією)
+                int safetyThreshold;
+                if (pEnergy.getLevel() <= 5) {
+                    safetyThreshold = (int)(maxE * 0.8f); // Новачок: ліміт 80%
+                } else {
+                    safetyThreshold = switch (be.currentMode) {
+                        case 0 -> (int)(maxE * 0.75f); // Safe mode (75%)
+                        case 1 -> (int)(maxE * 0.40f); // Balanced (40%)
+                        case 3 -> (int)(maxE * 2.0f);  // Unrestricted (200%)
+                        default -> maxE;               // Performance (100%)
+                    };
+                }
 
-                // Якщо гравець затиснув Shift — викачуємо все.
-                // Якщо ні — викачуємо тільки те, що вище порогу безпеки.
+                // Блокуємо регенерацію, якщо енергія вище ліміту плити
+                pEnergy.setRegenBlocked(currentE >= safetyThreshold && be.currentMode != 3);
+
                 boolean isManualDrain = player.isCrouching();
                 int targetEnergy = isManualDrain ? 0 : safetyThreshold;
 
                 int actuallyExtracted = 0;
                 if (currentE > targetEnergy) {
                     int excess = currentE - targetEnergy;
-                    // Швидкість викачування залежить від того, наскільки все погано
                     int drainRate = isManualDrain ? 80 : 40;
                     int toExtract = drainRate + (excess / 10);
 
                     actuallyExtracted = pEnergy.extractEnergyPure(toExtract, false);
                     int accepted = be.receiveTacionEnergy(actuallyExtracted, false);
 
-                    // Звуковий супровід
                     if (level.getGameTime() % 10 == 0 && actuallyExtracted > 0) {
                         float pitch = isManualDrain ? 0.7f : 1.1f;
                         level.playSound(null, pos, ModSounds.TACHYON_HUM.get(), SoundSource.BLOCKS, 0.2f, pitch);
                     }
 
-                    // Якщо внутрішній буфер плити повний, енергія "викидається" в атмосферу (Waste Event)
                     if (accepted < actuallyExtracted) {
                         MinecraftForge.EVENT_BUS.post(new TachyonWasteEvent(level, pos, actuallyExtracted - accepted));
                     }
@@ -107,15 +97,13 @@ public class StabilizationPlateBlockEntity extends BlockEntity implements ITachy
                     be.setChanged();
                 }
 
-                // --- ВІЗУАЛЬНИЙ ЕФЕКТ ПРОМЕНЯ ---
-                // Промінь активний при викачуванні АБО якщо енергія в "турбо-зоні" (>100% в Unrestricted)
+                // Візуальний ефект
                 if (actuallyExtracted > 0 || (currentE > maxE && be.currentMode == 3)) {
                     spawnBeamParticles(level, pos, player);
                 }
             });
         });
 
-        // Передача накопиченої енергії з плити в мережу (кабелі, сховища)
         if (be.storedEnergy > 0) {
             pushEnergyToNeighbors(level, pos, be);
         }
