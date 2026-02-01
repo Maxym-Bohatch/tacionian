@@ -57,7 +57,7 @@ public class PlayerEnergy {
     public int getExperience() { return experience; }
     public void setExperience(int exp) { this.experience = exp; }
     public int getRequiredExp() { return 1000 + (level * 1000); }
-
+    public int getExperienceToNextLevel() {return this.level * 100;}
     public int receiveEnergyPure(int amount, boolean simulate) {
         return receiveEnergyPure(amount, simulate, false);
     }

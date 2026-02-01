@@ -1,21 +1,3 @@
-/*
- *   Copyright (C) 2026 Enotien (tacionian mod)
- *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
- */
-
 package com.maxim.tacionian.items;
 
 import com.maxim.tacionian.register.ModBlocks;
@@ -41,19 +23,27 @@ public class TacionianBlockItem extends BlockItem {
 
         if (block == ModBlocks.WIRELESS_ENERGY_INTERFACE.get()) {
             tooltip.add(Component.translatable("tooltip.tacionian.wireless_interface.desc").withStyle(ChatFormatting.AQUA));
+            // Передаємо радіус 20
+            tooltip.add(Component.translatable("tooltip.tacionian.wireless_interface.power", 20).withStyle(ChatFormatting.YELLOW));
         }
         else if (block == ModBlocks.STABILIZATION_PLATE.get()) {
             tooltip.add(Component.translatable("tooltip.tacionian.stabilization_plate.desc").withStyle(ChatFormatting.GREEN));
         }
-        // Використовуємо твої назви змінних:
         else if (block == ModBlocks.SAFE_CHARGER_BLOCK.get()) {
-            tooltip.add(Component.translatable("tooltip.tacionian.safe_charger_block.desc").withStyle(ChatFormatting.YELLOW));
+            // Передаємо ліміт 20%
+            tooltip.add(Component.translatable("tooltip.tacionian.safe_charger_block.desc", 20).withStyle(ChatFormatting.YELLOW));
         }
         else if (block == ModBlocks.ENERGY_RESERVOIR.get()) {
             tooltip.add(Component.translatable("tooltip.tacionian.energy_reservoir.desc").withStyle(ChatFormatting.BLUE));
+            tooltip.add(Component.translatable("tooltip.tacionian.energy_reservoir.unstable_note").withStyle(ChatFormatting.DARK_PURPLE));
         }
         else if (block == ModBlocks.BASIC_CHARGER_BLOCK.get()) {
-            tooltip.add(Component.translatable("tooltip.tacionian.basic_charger_block.desc").withStyle(ChatFormatting.GRAY));
+            // Передаємо швидкість 500
+            tooltip.add(Component.translatable("tooltip.tacionian.basic_charger_block.desc", 500).withStyle(ChatFormatting.GRAY));
+        }
+        else if (block == ModBlocks.TACHYON_CABLE.get()) {
+            // Передаємо пропускну здатність 1000
+            tooltip.add(Component.translatable("tooltip.tacionian.tachyon_cable.desc", 1000).withStyle(ChatFormatting.GRAY));
         }
 
         super.appendHoverText(stack, level, tooltip, flag);

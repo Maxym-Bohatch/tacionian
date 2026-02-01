@@ -1,21 +1,3 @@
-/*
- *   Copyright (C) 2026 Enotien (tacionian mod)
- *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
- */
-
 package com.maxim.tacionian.items.charger;
 
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
@@ -50,13 +32,11 @@ public class BasicChargerItem extends Item {
             for (ItemStack target : serverPlayer.getInventory().items) {
                 if (target.isEmpty() || target == stack) continue;
 
-                // 1. Пріоритет: Tachyon (Твій мод)
                 var txCapOpt = target.getCapability(ModCapabilities.TACHYON_STORAGE);
                 if (txCapOpt.isPresent()) {
                     int taken = txCapOpt.map(cap -> {
                         int needed = cap.getMaxCapacity() - cap.getEnergy();
-                        // 10 Tx за тік - базова швидкість для Basic Charger
-                        int toGive = Math.min(pEnergy.getEnergy(), Math.min(needed, 10));
+                        int toGive = Math.min(pEnergy.getEnergy(), Math.min(needed, 10)); // Швидкість 10
 
                         int extracted = pEnergy.extractEnergyPure(toGive, false);
                         if (extracted > 0) {
@@ -69,28 +49,22 @@ public class BasicChargerItem extends Item {
                     if (taken > 0) {
                         changed = true;
                         if (pEnergy.getEnergy() <= 0) break;
-                        continue; // Переходимо до наступного предмета
+                        continue;
                     }
                 }
 
-                // 2. Другорядне: RF (Енергія інших модів)
                 var rfCapOpt = target.getCapability(ForgeCapabilities.ENERGY);
                 if (rfCapOpt.isPresent()) {
                     int txTaken = rfCapOpt.map(cap -> {
                         if (!cap.canReceive()) return 0;
-
-                        // Розраховуємо скільки RF ми можемо дати (100 RF = 10 Tx)
                         int maxRFToGive = 100;
                         int canAcceptRF = cap.receiveEnergy(maxRFToGive, true);
-
                         if (canAcceptRF > 0) {
-                            // Переводимо RF в необхідні Tx (округлення вгору)
                             int txNeeded = (int) Math.ceil(canAcceptRF / 10.0);
                             int toGive = Math.min(pEnergy.getEnergy(), Math.min(txNeeded, 10));
-
                             int extracted = pEnergy.extractEnergyPure(toGive, false);
                             if (extracted > 0) {
-                                pEnergy.addExperience(extracted * 0.15f, serverPlayer); // За конвертацію досвіду трохи більше
+                                pEnergy.addExperience(extracted * 0.15f, serverPlayer);
                                 cap.receiveEnergy(extracted * 10, false);
                                 return extracted;
                             }
@@ -118,6 +92,7 @@ public class BasicChargerItem extends Item {
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.translatable("tooltip.tacionian.basic_charger_item.desc").withStyle(ChatFormatting.GRAY));
+        // Передаємо число 10 для локалізації
+        tooltip.add(Component.translatable("tooltip.tacionian.basic_charger_item.desc", 10).withStyle(ChatFormatting.GRAY));
     }
 }
