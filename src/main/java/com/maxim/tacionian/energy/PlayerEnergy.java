@@ -56,7 +56,7 @@ public class PlayerEnergy {
     public int getMaxEnergy() { return 1000 + (level - 1) * TacionianConfig.ENERGY_PER_LEVEL.get(); }
     public int getExperience() { return experience; }
     public void setExperience(int exp) { this.experience = exp; }
-    public int getRequiredExp() { return 5000 + (level * 1500); }
+    public int getRequiredExp() { return 1000 + (level * 1000); }
 
     public int receiveEnergyPure(int amount, boolean simulate) {
         return receiveEnergyPure(amount, simulate, false);
@@ -153,7 +153,7 @@ public class PlayerEnergy {
         if (interfaceStabilizedTimer > 0) interfaceStabilizedTimer--;
         if (plateStabilizedTimer > 0) plateStabilizedTimer--;
         if (remoteNoDrainTimer > 0) remoteNoDrainTimer--;
-
+        if (plateStabilizedTimer <= 0) this.regenBlocked = false;
         float ratio = getEnergyFraction();
         this.globalStabilized = isStabilizedLogicActive() || hasUnrestrictedItem(player);
 

@@ -1,8 +1,3 @@
-/*
- * Copyright (C) 2026 Enotien (tacionian mod)
- * License: GPLv3
- */
-
 package com.maxim.tacionian.network;
 
 import com.maxim.tacionian.energy.ClientPlayerEnergy;
@@ -12,7 +7,7 @@ import net.minecraftforge.network.NetworkEvent;
 import java.util.function.Supplier;
 
 public class EnergySyncPacket {
-    private final int energy, level, maxEnergy, stabilizedTimer;
+    private final int energy, level, maxEnergy, stabilizedTimer, requiredExp; // Додано requiredExp
     private final float experience;
     private final boolean disconnected, regenBlocked, interfaceStabilized, plateStabilized, remoteNoDrain, remoteBlocked, pushbackEnabled, globalStabilized;
 
@@ -22,20 +17,21 @@ public class EnergySyncPacket {
         this.maxEnergy = storage.getMaxEnergy();
         this.stabilizedTimer = storage.getStabilizedTimer();
         this.experience = (float) storage.getExperience();
+        this.requiredExp = storage.getRequiredExp(); // Беремо значення прямо з сервера
         this.disconnected = storage.isDisconnected();
         this.regenBlocked = storage.isRegenBlocked();
         this.interfaceStabilized = storage.isInterfaceStabilized();
         this.plateStabilized = storage.isPlateStabilized();
         this.remoteNoDrain = storage.isRemoteNoDrain();
-        this.remoteBlocked = storage.isRemoteAccessBlocked(); // Нове
-        this.pushbackEnabled = storage.isPushbackEnabled(); // Нове
+        this.remoteBlocked = storage.isRemoteAccessBlocked();
+        this.pushbackEnabled = storage.isPushbackEnabled();
         this.globalStabilized = storage.isStabilizedLogicActive();
     }
 
-    // Декодер конструктор
-    public EnergySyncPacket(int e, int l, int me, int st, float exp, boolean d, boolean rb, boolean is, boolean ps, boolean rnd, boolean rbk, boolean pe, boolean gs) {
+    public EnergySyncPacket(int e, int l, int me, int st, float exp, int re, boolean d, boolean rb, boolean is, boolean ps, boolean rnd, boolean rbk, boolean pe, boolean gs) {
         this.energy = e; this.level = l; this.maxEnergy = me; this.stabilizedTimer = st;
-        this.experience = exp; this.disconnected = d; this.regenBlocked = rb;
+        this.experience = exp; this.requiredExp = re; // 14-й параметр
+        this.disconnected = d; this.regenBlocked = rb;
         this.interfaceStabilized = is; this.plateStabilized = ps; this.remoteNoDrain = rnd;
         this.remoteBlocked = rbk; this.pushbackEnabled = pe; this.globalStabilized = gs;
     }
@@ -46,6 +42,7 @@ public class EnergySyncPacket {
         buf.writeInt(pkt.maxEnergy);
         buf.writeInt(pkt.stabilizedTimer);
         buf.writeFloat(pkt.experience);
+        buf.writeInt(pkt.requiredExp); // ПИШЕМО
         buf.writeBoolean(pkt.disconnected);
         buf.writeBoolean(pkt.regenBlocked);
         buf.writeBoolean(pkt.interfaceStabilized);
@@ -59,15 +56,17 @@ public class EnergySyncPacket {
     public static EnergySyncPacket decode(FriendlyByteBuf buf) {
         return new EnergySyncPacket(
                 buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),
-                buf.readFloat(), buf.readBoolean(), buf.readBoolean(),
+                buf.readFloat(), buf.readInt(), // ЧИТАЄМО (порядок той самий!)
                 buf.readBoolean(), buf.readBoolean(), buf.readBoolean(),
-                buf.readBoolean(), buf.readBoolean(), buf.readBoolean()
+                buf.readBoolean(), buf.readBoolean(), buf.readBoolean(),
+                buf.readBoolean(), buf.readBoolean()
         );
     }
 
     public static void handle(EnergySyncPacket pkt, Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() -> ClientPlayerEnergy.update(
                 pkt.energy, pkt.level, pkt.maxEnergy, pkt.stabilizedTimer, pkt.experience,
+                pkt.requiredExp, // Передаємо в ClientPlayerEnergy
                 pkt.disconnected, pkt.regenBlocked, pkt.interfaceStabilized,
                 pkt.plateStabilized, pkt.remoteNoDrain, pkt.remoteBlocked, pkt.pushbackEnabled, pkt.globalStabilized
         ));

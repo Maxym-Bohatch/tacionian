@@ -87,16 +87,17 @@ public class TachyonChargerBlock extends BaseEntityBlock {
                             pEnergy.addExperience(taken * 0.1f, serverPlayer);
                             pEnergy.sync(serverPlayer);
 
-                            // ЗВУК: Твоя зарядка блоку
                             level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.7f, 1.4f);
-                            player.displayClientMessage(Component.literal("§eЗаряджання: §f" + charger.getEnergy() + " Tx"), true);
+
+
+                            player.displayClientMessage(Component.translatable("message.tacionian.charged", charger.getEnergy()), true);
                         }
                     } else {
-                        player.displayClientMessage(Component.literal("§bЗаряд повний: §f" + charger.getEnergy() + " Tx"), true);
+
+                        player.displayClientMessage(Component.translatable("tooltip.tacionian.energy_reservoir.energy", charger.getEnergy()), true);
                     }
                 } else {
                     player.displayClientMessage(Component.translatable("message.tacionian.safety_limit").withStyle(ChatFormatting.RED), true);
-                    // ЗВУК: Низька нота (сигнал помилки)
                     level.playSound(null, pos, SoundEvents.NOTE_BLOCK_BASS.get(), SoundSource.BLOCKS, 1.0f, 0.5f);
                 }
             });
