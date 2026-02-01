@@ -1,6 +1,6 @@
 {
   "itemGroup.tacionian_tab": "Tacionian",
-  "hud.tacionian.core_level": "Рівень ядра: %s",
+  "hud.tacionian.level": "Рівень ядра: %s",
   "hud.tacionian.energy_short": "Енергія: %s/%s Tx",
   "hud.tacionian.unstable": "§cНЕСТАБІЛЬНІСТЬ",
   "hud.tacionian.overload": "§4§lПЕРЕВАНТАЖЕННЯ: %s%%",
