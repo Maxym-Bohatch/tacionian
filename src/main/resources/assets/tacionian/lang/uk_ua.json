@@ -1,6 +1,9 @@
 {
   "itemGroup.tacionian_tab": "Tacionian",
-
+  "hud.tacionian.core_level": "Рівень ядра: %s",
+  "hud.tacionian.energy_short": "Енергія: %s/%s Tx",
+  "hud.tacionian.unstable": "§cНЕСТАБІЛЬНІСТЬ",
+  "hud.tacionian.overload": "§4§lПЕРЕВАНТАЖЕННЯ: %s%%",
   "item.tacionian.energy_cell": "Енергетичне ядро",
   "item.tacionian.energy_stabilizer": "Портативний стабілізатор",
   "item.tacionian.basic_charger_item": "Базовий зарядник",

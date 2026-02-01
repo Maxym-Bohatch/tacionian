@@ -1,6 +1,9 @@
 {
   "itemGroup.tacionian_tab": "Tacionian",
-
+  "hud.tacionian.core_level": "Core Level: %s",
+  "hud.tacionian.energy_short": "Energy: %s/%s Tx",
+  "hud.tacionian.unstable": "§cUNSTABLE",
+  "hud.tacionian.overload": "§4§lOVERLOAD: %s%%",
   "item.tacionian.energy_cell": "Energy Core",
   "item.tacionian.energy_stabilizer": "Portable Stabilizer",
   "item.tacionian.basic_charger_item": "Basic Charger",
