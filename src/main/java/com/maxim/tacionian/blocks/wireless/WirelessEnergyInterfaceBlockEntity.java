@@ -171,10 +171,10 @@ public class WirelessEnergyInterfaceBlockEntity extends BlockEntity implements I
 
     public Component getModeName() {
         return switch (mode) {
-            case 0 -> Component.literal("§a[РЕЖИМ: БЕЗПЕЧНИЙ (75%)]");
-            case 1 -> Component.literal("§e[РЕЖИМ: ЗБАЛАНСОВАНИЙ (90%)]");
-            case 2 -> Component.literal("§6[РЕЖИМ: ПОТУЖНИЙ (150%)]");
-            case 3 -> Component.literal("§c[РЕЖИМ: ЕКСТРЕМАЛЬНИЙ (195%)]");
+            case 0 -> Component.translatable("mode.tacionian.safe");
+            case 1 -> Component.translatable("mode.tacionian.balanced");
+            case 2 -> Component.translatable("mode.tacionian.performance");
+            case 3 -> Component.translatable("mode.tacionian.unrestricted");
             default -> Component.literal("Unknown");
         };
     }

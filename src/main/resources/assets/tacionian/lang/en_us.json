@@ -40,7 +40,6 @@
   "message.tacionian.novice_protection": "§e[Stabilization] §fNovice protection active. Disengages at level %s!",
   "message.tacionian.protection_lost": "§c§l[WARNING] §fNovice protection lost! You are vulnerable to overloads.",
   "message.tacionian.mode_switched": "Stabilization Mode: %s",
-  "message.tacionian.overload_critical": "§c§lCRITICAL! §7Core structure is collapsing! (>150%)",
   "message.tacionian.low_energy_warning": "§eCore unstable! Low energy levels!",
   "message.tacionian.jammed_warning": "§e§lSIGNAL LOST! §7Tachyon connection jammed!",
   "message.tacionian.charged": "§aCore charged: +%s Tx",
@@ -79,5 +78,15 @@
   "command.tacionian.info.status": "§7Network: %s",
   "command.tacionian.info.regen": "§7Regeneration: %s",
   "command.tacionian.info.pushback": "§7Pushback Effect: %s",
-  "command.tacionian.regen.success": "§b[Tacionian] §7Core regeneration: %s"
+  "command.tacionian.regen.success": "§b[Tacionian] §7Core regeneration: %s",
+  "tooltip.tacionian.energy_reservoir.energy": "§7Energy reserve: §b%s / %s Tx",
+  "message.tacionian.safety_limit": "§c[Tacionian] Safety limit reached",
+  "message.tacionian.novice_protection_on": "§b[Tacionian] Novice Stabilization is activated. The kernel level is secure.",
+  "message.tacionian.novice_protection_off": "§6[Tacionian] NOTE: Novice Stabilization is disabled. The kernel is now unstable!",
+  "message.tacionian.overload_critical": "§c[Tacionian] Core overloaded! The erosion of experience is accelerated!",
+  "message.tacionian.reservoir_extracted": "§a[<] Extracted: %s Tx",
+  "message.tacionian.reservoir_inserted": "§c[>] Insert: %s Tx",
+  "tooltip.tacionian.energy_stabilizer.integrity": "Integrity",
+  "message.tacionian.item_full": "§eThe item is already fully charged!",
+  "message.tacionian.item_charged_status": "§aItem %s: §b%d / %d Tx"
 }

@@ -19,17 +19,22 @@
 package com.maxim.tacionian.blocks.charger;
 
 import com.maxim.tacionian.energy.PlayerEnergyProvider;
+import com.maxim.tacionian.items.energy.EnergyStabilizerItem;
 import com.maxim.tacionian.register.ModBlockEntities;
 import com.maxim.tacionian.register.ModSounds;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
@@ -67,11 +72,50 @@ public class TachyonChargerBlock extends BaseEntityBlock {
 
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof TachyonChargerBlockEntity charger) {
+            ItemStack itemInHand = player.getItemInHand(hand);
+
+            // 1. Витягування енергії з блока в ядро гравця (Shift + ПКМ)
             if (player.isShiftKeyDown()) {
                 charger.handlePlayerExtraction(serverPlayer);
                 return InteractionResult.SUCCESS;
             }
 
+            // 2. ЗАРЯДКА ПРЕДМЕТА В РУЦІ (Використовуємо універсальний підхід)
+            if (!itemInHand.isEmpty()) {
+                CompoundTag nbt = itemInHand.getOrCreateTag();
+                if (nbt.contains("TachyonBuffer")) {
+                    int currentItemEnergy = nbt.getInt("TachyonBuffer");
+
+                    // Визначаємо макс. ємність: або зі списку, або з NBT, або стандарт
+                    int maxItemEnergy = 5000;
+                    if (itemInHand.getItem() instanceof EnergyStabilizerItem) maxItemEnergy = 10000;
+                    else if (nbt.contains("MaxTachyon")) maxItemEnergy = nbt.getInt("MaxTachyon");
+
+                    if (currentItemEnergy < maxItemEnergy && charger.getEnergy() > 0) {
+                        int space = maxItemEnergy - currentItemEnergy;
+                        int toTransfer = Math.min(space, Math.min(charger.getEnergy(), 500));
+
+                        if (toTransfer > 0) {
+                            charger.extractTacionEnergy(toTransfer, false);
+                            nbt.putInt("TachyonBuffer", currentItemEnergy + toTransfer);
+
+                            // Звук з твого реєстру
+                            level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.8f, 1.2f);
+
+                            // Використовуємо твій ключ для відображення прогресу зарядки предмета
+                            player.displayClientMessage(Component.translatable("tooltip.tacionian.energy_reservoir.energy",
+                                    (currentItemEnergy + toTransfer), maxItemEnergy), true);
+                            return InteractionResult.SUCCESS;
+                        }
+                    } else if (currentItemEnergy >= maxItemEnergy) {
+                        // Ключ, який варто додати в JSON (нижче)
+                        player.displayClientMessage(Component.translatable("message.tacionian.item_full"), true);
+                        return InteractionResult.SUCCESS;
+                    }
+                }
+            }
+
+            // 3. ЗАРЯДКА БЛОКА ВІД ГРАВЦЯ (стара логіка)
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(pEnergy -> {
                 int minLimit = isSafe ? (int)(pEnergy.getMaxEnergy() * 0.15f) : 0;
 
@@ -89,15 +133,17 @@ public class TachyonChargerBlock extends BaseEntityBlock {
 
                             level.playSound(null, pos, ModSounds.ENERGY_CHARGE.get(), SoundSource.BLOCKS, 0.7f, 1.4f);
 
-
-                            player.displayClientMessage(Component.translatable("message.tacionian.charged", charger.getEnergy()), true);
+                            // Твій ключ для успішної зарядки
+                            player.displayClientMessage(Component.translatable("message.tacionian.charged", taken), true);
                         }
                     } else {
-
-                        player.displayClientMessage(Component.translatable("tooltip.tacionian.energy_reservoir.energy", charger.getEnergy()), true);
+                        // Твій ключ для показу енергії в резервуарі
+                        player.displayClientMessage(Component.translatable("tooltip.tacionian.energy_reservoir.energy",
+                                charger.getEnergy(), charger.getMaxCapacity()), true);
                     }
                 } else {
-                    player.displayClientMessage(Component.translatable("message.tacionian.safety_limit").withStyle(ChatFormatting.RED), true);
+                    // Твій ключ ліміту безпеки
+                    player.displayClientMessage(Component.translatable("message.tacionian.safety_limit"), true);
                     level.playSound(null, pos, SoundEvents.NOTE_BLOCK_BASS.get(), SoundSource.BLOCKS, 1.0f, 0.5f);
                 }
             });

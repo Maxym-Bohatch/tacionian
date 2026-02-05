@@ -42,6 +42,7 @@ public class PlayerEnergy {
     private boolean regenBlocked = false;
     private boolean remoteAccessBlocked = false;
     private boolean globalStabilized = false;
+    private boolean wasNovice = true;
 
     private int stabilizedTimer = 0;
     private int interfaceStabilizedTimer = 0;
@@ -57,39 +58,36 @@ public class PlayerEnergy {
     public int getExperience() { return experience; }
     public void setExperience(int exp) { this.experience = exp; }
     public int getRequiredExp() { return 1000 + (level * 1000); }
-    public int getExperienceToNextLevel() {return this.level * 100;}
-    public int receiveEnergyPure(int amount, boolean simulate) {
-        return receiveEnergyPure(amount, simulate, false);
-    }
+    public int getExperienceToNextLevel() { return getRequiredExp(); }
+    public float getEnergyFraction() { return getMaxEnergy() > 0 ? (float) energy / (float) getMaxEnergy() : 0.0f; }
+    public float getEnergyPercent() { return getEnergyFraction() * 100f; }
 
-    public float getEnergyPercent() {
-        return getEnergyFraction() * 100f;
-    }
-
-    public int getStabilizedTimer() {
-        return stabilizedTimer;
-    }
     public boolean isDisconnected() { return disconnected; }
     public void setDisconnected(boolean state) { this.disconnected = state; }
     public boolean isPhysicsDisabled() { return physicsDisabled; }
     public void setPhysicsDisabled(boolean state) { this.physicsDisabled = state; }
-    public boolean isRegenBlocked() { return regenBlocked; }
-    public void setRegenBlocked(boolean state) { this.regenBlocked = state; }
     public boolean isPushbackEnabled() { return pushbackEnabled; }
     public void setPushbackEnabled(boolean state) { this.pushbackEnabled = state; }
+
+    public boolean isRegenBlocked() { return regenBlocked; }
+    public void setRegenBlocked(boolean state) { this.regenBlocked = state; }
     public boolean isRemoteAccessBlocked() { return remoteAccessBlocked; }
     public void setRemoteAccessBlocked(boolean state) { this.remoteAccessBlocked = state; }
 
-    public void setStabilized(boolean v) { if (v) stabilizedTimer = 30; }
-    public boolean isStabilized() { return stabilizedTimer > 0; }
     public void setInterfaceStabilized(boolean v) { if (v) interfaceStabilizedTimer = 25; }
     public boolean isInterfaceStabilized() { return interfaceStabilizedTimer > 0; }
     public void setPlateStabilized(boolean v) { if (v) plateStabilizedTimer = 25; }
     public boolean isPlateStabilized() { return plateStabilizedTimer > 0; }
     public void setRemoteNoDrain(boolean v) { if (v) remoteNoDrainTimer = 30; }
     public boolean isRemoteNoDrain() { return remoteNoDrainTimer > 0; }
+    public void setStabilized(boolean v) { if (v) stabilizedTimer = 30; }
+    public boolean isStabilized() { return stabilizedTimer > 0; }
+    public int getStabilizedTimer() { return stabilizedTimer; }
 
-    public float getEnergyFraction() { return getMaxEnergy() > 0 ? (float) energy / (float) getMaxEnergy() : 0.0f; }
+    // НОВИЙ МЕТОД ДЛЯ ПРІОРИТЕТІВ
+    public boolean isExternalStabilizationActive() {
+        return isInterfaceStabilized() || isPlateStabilized();
+    }
 
     public boolean isStabilizedLogicActive() {
         return (this.level <= 5) || isStabilized() || isInterfaceStabilized() || isPlateStabilized() || isRemoteNoDrain();
@@ -115,20 +113,14 @@ public class PlayerEnergy {
     }
 
     // --- ЕНЕРГІЯ ---
+    public int receiveEnergyPure(int amount, boolean simulate) {
+        return receiveEnergyPure(amount, simulate, false);
+    }
+
     public int receiveEnergyPure(int amount, boolean simulate, boolean ignoreLimits) {
         if (disconnected && !ignoreLimits) return 0;
         int max = getMaxEnergy();
-        float limitMult;
-
-        if (ignoreLimits) {
-            limitMult = 2.0f;
-        } else if (this.level <= 5) {
-            limitMult = 0.8f; // Рівно 80% для новачків
-        } else if (this.globalStabilized) {
-            limitMult = 2.0f; // Стабілізатор (Mode 3)
-        } else {
-            limitMult = 0.95f; // Стандартний поріг
-        }
+        float limitMult = ignoreLimits ? 2.1f : (this.level <= 5 ? 0.8f : (this.globalStabilized ? 2.1f : 1.1f));
 
         int cap = (int)(max * limitMult);
         if (this.energy >= cap) return 0;
@@ -143,7 +135,7 @@ public class PlayerEnergy {
         return extracted;
     }
 
-    // --- ТІК ---
+    // --- ГОЛОВНИЙ ТІК ---
     public void tick(Player player) {
         if (player.level().isClientSide) return;
         ServerPlayer sp = (ServerPlayer) player;
@@ -154,15 +146,30 @@ public class PlayerEnergy {
         if (plateStabilizedTimer > 0) plateStabilizedTimer--;
         if (remoteNoDrainTimer > 0) remoteNoDrainTimer--;
         if (plateStabilizedTimer <= 0) this.regenBlocked = false;
+
         float ratio = getEnergyFraction();
         this.globalStabilized = isStabilizedLogicActive() || hasUnrestrictedItem(player);
 
-        // Попередження про низьку енергію
-        if (ratio < 0.05f && sp.tickCount % 600 == 0 && !sp.isCreative()) {
-            sp.displayClientMessage(Component.translatable("message.tacionian.low_energy_warning"), true);
+        if ((this.level <= 5) != wasNovice) {
+            wasNovice = (this.level <= 5);
+            sp.displayClientMessage(Component.translatable(wasNovice ? "message.tacionian.novice_protection_on" : "message.tacionian.novice_protection_off"), true);
         }
 
-        // Візуальні ефекти перевантаження
+        if (disconnected) {
+            if (player.tickCount % 20 == 0) sync(sp);
+            return;
+        }
+
+        float explosionThreshold = globalStabilized ? 2.01f : 1.05f;
+        if (ratio > explosionThreshold && !player.isCreative()) {
+            if (EnergyStabilizerItem.tryPreventCollapse(sp, this)) {
+                sync(sp);
+                return;
+            }
+            doCollapse(sp, world, ratio);
+            return;
+        }
+
         if (ratio > 0.85f && !player.isCreative()) {
             if (player.getRandom().nextFloat() < (ratio * 0.15f)) {
                 world.sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY() + 1, player.getZ(), 3, 0.3, 0.5, 0.3, 0.01);
@@ -173,21 +180,8 @@ public class PlayerEnergy {
             }
         }
 
-        if (disconnected) {
-            if (player.tickCount % 20 == 0) sync(sp);
-            return;
-        }
-
-        // Фізика (Відштовхування)
         if (ratio > 0.9f && pushbackEnabled && !player.isCreative()) {
             handlePhysics(player, ratio, world);
-        }
-
-        // Колапс (Вибух)
-        float explosionThreshold = globalStabilized ? 2.01f : 1.05f;
-        if (ratio > explosionThreshold && !player.isCreative()) {
-            doCollapse(sp, world, ratio);
-            return;
         }
 
         handlePassiveLogic(sp, ratio);
@@ -198,16 +192,24 @@ public class PlayerEnergy {
         float startAt = globalStabilized ? 1.70f : 0.90f;
         if (ratio > startAt) {
             double p = ratio - startAt;
-            player.fallDistance = 0;
-            Vec3 movement = player.getDeltaMovement();
-            player.setDeltaMovement(movement.x, (Math.sin(player.tickCount * 0.15) * 0.04) + (0.07 * p), movement.z);
+            Vec3 currentVel = player.getDeltaMovement();
+
+            if (player.isCrouching()) {
+                if (!player.onGround()) player.addDeltaMovement(new Vec3(0, -0.05, 0));
+            } else {
+                player.fallDistance = 0;
+                double hoverTargetY = (Math.sin(player.tickCount * 0.15) * 0.02) + (0.04 * p);
+                double forceY = (hoverTargetY - currentVel.y) * 0.15;
+                player.addDeltaMovement(new Vec3(0, forceY + 0.035, 0));
+                if (player.getDeltaMovement().y > 0.2) player.setDeltaMovement(currentVel.x, 0.2, currentVel.z);
+            }
             player.hurtMarked = true;
 
             List<Entity> nearby = world.getEntities(player, player.getBoundingBox().inflate(3.5 * ratio));
             for (Entity e : nearby) {
                 if (e instanceof LivingEntity || e instanceof Projectile || e instanceof ItemEntity) {
-                    Vec3 dir = e.position().subtract(player.position()).normalize().scale(p * 1.5);
-                    e.push(dir.x, 0.15, dir.z);
+                    Vec3 dir = e.position().subtract(player.position()).normalize().scale(p * 0.8);
+                    e.push(dir.x, 0.05, dir.z);
                     if (world.random.nextFloat() < 0.05f)
                         world.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.TRIDENT_THUNDER, SoundSource.PLAYERS, 0.4f, 2.0f);
                 }
@@ -216,47 +218,47 @@ public class PlayerEnergy {
     }
 
     private void handlePassiveLogic(ServerPlayer sp, float ratio) {
-        float erosionLimit = globalStabilized ? 1.80f : 0.80f;
-
-        // Повідомлення про критичне перевантаження
-        if (ratio > 1.50f && sp.tickCount % 100 == 0) {
-            sp.displayClientMessage(Component.translatable("message.tacionian.overload_critical"), true);
-        }
-
+        float erosionLimit = globalStabilized ? 1.80f : 0.88f;
         if (ratio > erosionLimit && !sp.isCreative()) {
-            this.experience -= (int)((ratio - erosionLimit) * 80);
+            if (sp.tickCount % 20 == 0) {
+                this.experience -= (int)((ratio - erosionLimit) * 80);
+                if (ratio > 1.50f && sp.tickCount % 100 == 0) sp.displayClientMessage(Component.translatable("message.tacionian.overload_critical"), true);
+            }
         } else if (ratio < 0.01f && sp.tickCount % 80 == 0 && !sp.isCreative()) {
-            this.experience -= 30;
-            // Використовуємо повідомлення про ліміт безпеки при нулі
+            this.experience -= 40;
             sp.displayClientMessage(Component.translatable("message.tacionian.safety_limit"), true);
         }
 
         if (this.experience < 0) {
             if (this.level > 1) {
                 this.level--;
-                this.experience = getRequiredExp() / 2;
+                this.experience = getRequiredExp() / 4;
                 sp.level().playSound(null, sp.getX(), sp.getY(), sp.getZ(), SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 1f, 1f);
                 sp.displayClientMessage(Component.translatable("message.tacionian.level_down", level), true);
-            } else this.experience = 0;
+            } else { this.experience = 0; }
         }
 
-        float regenCap = globalStabilized ? 2.0f : 0.95f;
+        float regenCap = globalStabilized ? 2.05f : 1.08f;
         if (sp.tickCount % 20 == 0 && !regenBlocked && ratio < regenCap) {
-            receiveEnergyPure(level + (energy / 50), false, false);
+            receiveEnergyPure(level + (energy / 60), false, false);
         }
     }
 
     private void doCollapse(ServerPlayer sp, ServerLevel world, float ratio) {
+        if (EnergyStabilizerItem.tryPreventCollapse(sp, this)) {
+            sync(sp);
+            return;
+        }
+
         world.sendParticles(ParticleTypes.FLASH, sp.getX(), sp.getY() + 1, sp.getZ(), 1, 0, 0, 0, 0);
         world.playSound(null, sp.getX(), sp.getY(), sp.getZ(), SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS, 5.0f, 0.5f);
         world.explode(null, sp.getX(), sp.getY(), sp.getZ(), 4.5f * ratio, true, Level.ExplosionInteraction.BLOCK);
 
-        // Використовуємо наш кастомний тип пошкодження
-        sp.hurt(ModDamageSources.getTachyonDamage(world), Float.MAX_VALUE);
-
-        this.level = Math.max(1, level - 3);
+        this.level = Math.max(1, this.level - 3);
         this.energy = 0;
         this.experience = 0;
+
+        sp.hurt(ModDamageSources.getTachyonDamage(world), Float.MAX_VALUE);
         sync(sp);
     }
 
@@ -267,16 +269,11 @@ public class PlayerEnergy {
     }
 
     public void saveNBTData(CompoundTag nbt) {
-        nbt.putInt("energy", energy);
-        nbt.putInt("level", level);
-        nbt.putInt("experience", experience);
-        nbt.putBoolean("disconnected", disconnected);
-        nbt.putBoolean("regenBlocked", regenBlocked);
+        nbt.putInt("energy", energy); nbt.putInt("level", level); nbt.putInt("experience", experience);
+        nbt.putBoolean("disconnected", disconnected); nbt.putBoolean("regenBlocked", regenBlocked);
         nbt.putBoolean("remoteBlocked", remoteAccessBlocked);
-        nbt.putBoolean("pushbackEnabled", pushbackEnabled);
-        nbt.putInt("t_stab", stabilizedTimer);
-        nbt.putInt("t_int", interfaceStabilizedTimer);
-        nbt.putInt("t_plate", plateStabilizedTimer);
+        nbt.putBoolean("pushbackEnabled", pushbackEnabled); nbt.putInt("t_stab", stabilizedTimer);
+        nbt.putInt("t_int", interfaceStabilizedTimer); nbt.putInt("t_plate", plateStabilizedTimer);
         nbt.putInt("t_remote", remoteNoDrainTimer);
     }
 
@@ -292,6 +289,7 @@ public class PlayerEnergy {
         this.interfaceStabilizedTimer = nbt.getInt("t_int");
         this.plateStabilizedTimer = nbt.getInt("t_plate");
         this.remoteNoDrainTimer = nbt.getInt("t_remote");
+        this.wasNovice = this.level <= 5;
     }
 
     private boolean hasUnrestrictedItem(Player player) {

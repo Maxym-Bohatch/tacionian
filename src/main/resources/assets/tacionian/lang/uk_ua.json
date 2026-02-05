@@ -40,7 +40,6 @@
   "message.tacionian.novice_protection": "§e[Стабілізація] §fЗахист новачка активний. Вимкнеться на рівні %s!",
   "message.tacionian.protection_lost": "§c§l[УВАГА] §fЗахист новачка втрачено! Ви вразливі до перевантажень.",
   "message.tacionian.mode_switched": "Режим стабілізації: %s",
-  "message.tacionian.overload_critical": "§c§lКРИТИЧНО! §7Структура ядра руйнується! (>150%)",
   "message.tacionian.low_energy_warning": "§eЯдро нестабільне! Низький рівень енергії!",
   "message.tacionian.jammed_warning": "§e§lСИГНАЛ ВТРАЧЕНО! §7Тахіонне з'єднання заглушене!",
   "message.tacionian.charged": "§aЯдро заряджено: +%s Tx",
@@ -79,5 +78,15 @@
   "command.tacionian.info.status": "§7Мережа: %s",
   "command.tacionian.info.regen": "§7Регенерація: %s",
   "command.tacionian.info.pushback": "§7Віддача (Pushback): %s",
-  "command.tacionian.regen.success": "§b[Tacionian] §7Регенерація ядра: %s"
+  "command.tacionian.regen.success": "§b[Tacionian] §7Регенерація ядра: %s",
+  "tooltip.tacionian.energy_reservoir.energy": "§7Запас енергії: §b%s / %s Tx",
+  "message.tacionian.safety_limit": "§c[Tacionian] Досягнуто ліміту безпеки",
+  "message.tacionian.novice_protection_on": "§b[Tacionian] Стабілізація новачка активована. Рівень ядра безпечний.",
+  "message.tacionian.novice_protection_off": "§6[Tacionian] УВАГА: Стабілізація новачка вимкнена. Ядро тепер нестабільне!",
+  "message.tacionian.overload_critical": "§c[Tacionian] Ядро перевантажене! Ерозія досвіду прискорена!",
+  "message.tacionian.reservoir_extracted": "§a[<] Витягнуто: %s Tx",
+  "message.tacionian.reservoir_inserted": "§c[>] Залито: %s Tx",
+  "tooltip.tacionian.energy_stabilizer.integrity": "Цілісність",
+  "message.tacionian.item_full": "§eПредмет уже повністю заряджений!",
+  "message.tacionian.item_charged_status": "§aПредмет %s: §b%d / %d Tx"
 }

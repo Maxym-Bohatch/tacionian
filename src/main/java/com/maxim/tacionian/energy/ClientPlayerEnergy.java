@@ -42,4 +42,5 @@ public class ClientPlayerEnergy {
     public static boolean isPlateStabilized() { return plateStabilized; }
     public static boolean isInterfaceStabilized() { return interfaceStabilized; }
     public static boolean isRemoteNoDrain() { return remoteNoDrain; }
+    public static boolean isStabilizedLogicActive() { return (level <= 5) || (stabilizedTimer > 0) || interfaceStabilized || plateStabilized || remoteNoDrain;}
 }

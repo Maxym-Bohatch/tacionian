@@ -132,7 +132,9 @@ public class EnergyCommand {
         for (ServerPlayer player : targets) {
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
                 energy.setLevel(value);
-                energy.setExperience(0);
+                // Встановлюємо 50% від необхідного досвіду для нового рівня
+                int halfExp = energy.getRequiredExp() / 2;
+                energy.setExperience(halfExp);
                 energy.sync(player);
             });
         }

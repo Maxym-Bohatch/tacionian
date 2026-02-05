@@ -1,19 +1,6 @@
 /*
- *   Copyright (C) 2026 Enotien (tacionian mod)
- *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
+ * Copyright (C) 2026 Enotien (tacionian mod)
+ * License: GNU General Public License v3
  */
 
 package com.maxim.tacionian.events;
@@ -53,18 +40,28 @@ public class ModEvents {
 
     @SubscribeEvent
     public static void onPlayerCloned(PlayerEvent.Clone event) {
+        // Обов'язково оживляємо капабіліті старого гравця для копіювання
         event.getOriginal().reviveCaps();
+
         event.getOriginal().getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(oldStore -> {
             event.getEntity().getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(newStore -> {
                 CompoundTag nbt = new CompoundTag();
                 oldStore.saveNBTData(nbt);
                 newStore.loadNBTData(nbt);
 
-                // ВИПРАВЛЕННЯ СМЕРТЕЛЬНОЇ ПЕТЛІ: Якщо це смерть, скидаємо енергію на 0
+                // Якщо це смерть (а не перехід між світами)
                 if (event.isWasDeath()) {
+                    // Обнуляємо тільки тимчасові статуси та енергію.
+                    // Рівень залишається таким, яким він став після doCollapse()
                     newStore.setEnergy(0);
                     newStore.setInterfaceStabilized(false);
                     newStore.setPlateStabilized(false);
+                    newStore.setStabilized(false);
+                }
+
+                // Синхронізуємо дані з клієнтом відразу після клонування
+                if (event.getEntity() instanceof ServerPlayer sp) {
+                    newStore.sync(sp);
                 }
             });
         });
@@ -78,22 +75,15 @@ public class ModEvents {
     }
 
     @SubscribeEvent
-    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
-            player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
-                energy.setEnergy(0);
-                energy.sync(player);
-            });
-        }
-    }
-
-    @SubscribeEvent
     public static void onPlayerDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             DamageSource source = event.getSource();
+            // Ефекти при смерті від тахіонів
             if (source.is(PlayerEnergyEffects.TACHYON_DAMAGE_TYPE)) {
                 ServerLevel level = player.serverLevel();
-                double x = player.getX(); double y = player.getY() + 1.0; double z = player.getZ();
+                double x = player.getX();
+                double y = player.getY() + 1.0;
+                double z = player.getZ();
 
                 level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, x, y, z, 1, 0, 0, 0, 0);
                 level.sendParticles(ParticleTypes.SONIC_BOOM, x, y, z, 1, 0, 0, 0, 0);
@@ -108,7 +98,7 @@ public class ModEvents {
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.side.isServer() && event.phase == TickEvent.Phase.END && event.player instanceof ServerPlayer player) {
-            // Захист на 3 секунди після спавну, щоб не вбило миттєво
+            // Захист на 3 секунди після спавну
             if (player.tickCount < 60) return;
 
             player.getCapability(PlayerEnergyProvider.PLAYER_ENERGY).ifPresent(energy -> {
@@ -116,6 +106,7 @@ public class ModEvents {
                 energy.tick(player);
                 PlayerEnergyEffects.apply(player, energy);
 
+                // Регулярна синхронізація кожні 5 тіків
                 if (player.level().getGameTime() % 5 == 0) {
                     energy.sync(player);
                 }

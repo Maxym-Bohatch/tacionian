@@ -49,7 +49,7 @@ public class PlayerEnergyEffects {
 
         // 2. ВИЗНАЧЕННЯ СТАТУСУ БЕЗПЕКИ
         boolean isSafeZone = energy.isStabilizedLogicActive() || hasUnrestrictedItem(player);
-        float startThreshold = isSafeZone ? 1.85f : 0.88f;
+        float startThreshold = isSafeZone ? 1.80f : 0.88f;
 
         // 3. ЕФЕКТИ ПЕРЕВАНТАЖЕННЯ ТА ФІЗИКА
         if (ratio > startThreshold) {
@@ -75,52 +75,41 @@ public class PlayerEnergyEffects {
 
     private static void handleTachyonPhysics(ServerPlayer player, ServerLevel level, PlayerEnergy energy, float severity, boolean isSafeZone) {
         double forceX = 0, forceY = 0, forceZ = 0;
-        double multiplier = isSafeZone ? 0.012 : 0.075;
-        double energyPower = Math.min(2.5, (energy.getEnergy() / 1000.0) * severity * multiplier);
+        double multiplier = isSafeZone ? 0.008 : 0.05; // Зменшив множники для адитивності
+        double energyPower = Math.min(1.5, (energy.getEnergy() / 1000.0) * severity * multiplier);
 
-        // Оптимізований пошук блоків (обмежений радіус)
         BlockPos center = player.blockPosition();
-        for (BlockPos targetPos : BlockPos.betweenClosed(center.offset(-2, -1, -2), center.offset(2, 2, 2))) {
+        for (BlockPos targetPos : BlockPos.betweenClosed(center.offset(-2, -1, -2), center.offset(2, 1, 2))) {
             if (!level.getBlockState(targetPos).isAir()) {
                 double dx = player.getX() - (targetPos.getX() + 0.5);
-                double dy = (player.getY() + 1.0) - (targetPos.getY() + 0.5);
+                double dy = (player.getY() + 0.5) - (targetPos.getY() + 0.5);
                 double dz = player.getZ() - (targetPos.getZ() + 0.5);
 
                 double distSq = dx * dx + dy * dy + dz * dz;
-                if (distSq > 0 && distSq < 6.0) {
+                if (distSq > 0 && distSq < 5.0) {
                     double dist = Math.sqrt(distSq);
-                    double pushFactor = (2.5 - dist) / 2.5;
+                    double pushFactor = (2.2 - dist) / 2.2;
 
                     forceX += (dx / dist) * pushFactor * energyPower;
                     forceZ += (dz / dist) * pushFactor * energyPower;
-                    if (!isSafeZone) forceY += (dy / dist) * pushFactor * energyPower;
 
-                    // Візуальні розряди на блоках
-                    if (player.getRandom().nextFloat() < 0.1f) {
-                        level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
-                                targetPos.getX() + 0.5 + (dx/dist * -0.4),
-                                targetPos.getY() + 0.5 + (dy/dist * -0.4),
-                                targetPos.getZ() + 0.5 + (dz/dist * -0.4),
-                                1, 0, 0, 0, 0);
-                    }
+                    // У SafeZone (200%) вертикальне відштовхування від блоків мінімальне
+                    if (!isSafeZone) forceY += (dy / dist) * pushFactor * energyPower;
                 }
             }
         }
 
-        // Логіка стабільної левітації
+        // ЛОГІКА СУМУВАННЯ
         if (isSafeZone) {
-            Vec3 vel = player.getDeltaMovement();
-            double hoverTarget = 0.08;
-            if (vel.y < 0) forceY = 0.085; // Анти-гравітація
-            else if (vel.y > hoverTarget) forceY = -0.02; // М'яке гальмування
+            if (player.isCrouching()) {
+                forceY = -0.06; // Допомагаємо спускатися
+            } else {
+                // У повітрі підтримуємо м'яку плавучість
+                if (player.getDeltaMovement().y < 0) forceY += 0.07;
+            }
         }
 
-        // Clamp (Обмеження сили, щоб не викидало з карти)
-        double limit = isSafeZone ? 0.15 : 0.4;
-        forceX = Math.max(-limit, Math.min(limit, forceX));
-        forceZ = Math.max(-limit, Math.min(limit, forceZ));
-        forceY = Math.max(-0.1, Math.min(limit, forceY));
-
+        // Використовуємо push (він всередині робить addDeltaMovement)
         player.push(forceX, forceY, forceZ);
         player.hurtMarked = true;
     }

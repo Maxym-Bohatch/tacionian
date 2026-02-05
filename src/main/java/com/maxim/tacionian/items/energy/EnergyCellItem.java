@@ -95,20 +95,22 @@ public class EnergyCellItem extends Item {
             int step = 100;
 
             if (serverPlayer.isShiftKeyDown()) {
-                int toGive = Math.min(Math.min(stored, step), pEnergy.getMaxEnergy() - pEnergy.getEnergy());
-                if (toGive > 0) {
-                    pEnergy.receiveEnergyPure(toGive, false);
-                    nbt.putInt("energy", stored - toGive);
-                    // ЗВУК: Ефект переливання в гравця
+                // Питаємо гравця: скільки ти МОЖЕШ прийняти? (simulate = true)
+                int canReceive = pEnergy.receiveEnergyPure(Math.min(stored, step), true);
+                if (canReceive > 0) {
+                    pEnergy.receiveEnergyPure(canReceive, false); // Додаємо реально
+                    nbt.putInt("energy", stored - canReceive);
                     level.playSound(null, player.blockPosition(), ModSounds.MODE_SWITCH.get(), SoundSource.PLAYERS, 0.4f, 1.2f);
                 }
             } else {
+                // Питаємо предмет: скільки в тобі вільного місця?
                 int spaceInCell = MAX_ENERGY - stored;
-                int toTake = Math.min(Math.min(pEnergy.getEnergy(), step), spaceInCell);
-                if (toTake > 0) {
-                    pEnergy.extractEnergyPure(toTake, false);
-                    nbt.putInt("energy", stored + toTake);
-                    // ЗВУК: Ефект переливання в комірку
+                int maxToTake = Math.min(Math.min(pEnergy.getEnergy(), step), spaceInCell);
+
+                if (maxToTake > 0) {
+                    // Витягуємо з гравця стільки, скільки влізе в ядро
+                    int actuallyTaken = pEnergy.extractEnergyPure(maxToTake, false);
+                    nbt.putInt("energy", stored + actuallyTaken);
                     level.playSound(null, player.blockPosition(), ModSounds.MODE_SWITCH.get(), SoundSource.PLAYERS, 0.4f, 0.8f);
                 }
             }

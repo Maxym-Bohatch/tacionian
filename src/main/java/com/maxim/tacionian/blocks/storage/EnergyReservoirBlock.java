@@ -1,18 +1,18 @@
 /*
- *   Copyright (C) 2026 Enotien (tacionian mod)
+ * Copyright (C) 2026 Enotien (tacionian mod)
  *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  */
 
@@ -29,9 +29,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
@@ -42,8 +39,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.common.MinecraftForge;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
 
 public class EnergyReservoirBlock extends BaseEntityBlock {
     public EnergyReservoirBlock(Properties props) {
@@ -75,7 +70,7 @@ public class EnergyReservoirBlock extends BaseEntityBlock {
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof EnergyReservoirBlockEntity reservoir) {
 
-            // Просто інформація
+            // Перевірка порожньої руки для виводу інформації
             if (player.getItemInHand(hand).isEmpty() && !player.isShiftKeyDown()) {
                 player.displayClientMessage(Component.translatable("tooltip.tacionian.energy_reservoir.energy",
                         reservoir.getEnergy(), reservoir.getMaxCapacity()).withStyle(ChatFormatting.YELLOW), true);
@@ -87,21 +82,32 @@ public class EnergyReservoirBlock extends BaseEntityBlock {
                 boolean actionHappened = false;
 
                 if (player.isShiftKeyDown()) {
-                    int extracted = reservoir.extractTacionEnergy(amount, false);
-                    if (extracted > 0) {
-                        pEnergy.receiveEnergyPure(extracted, false);
-                        player.displayClientMessage(Component.literal("§a[<] Витягнуто: " + extracted + " Tx"), true);
-                        actionHappened = true;
+                    // РЕЖИМ: Витягування з бака в гравця
+                    // 1. Питаємо гравця, скільки він реально МОЖЕ прийняти (simulate: true)
+                    int canPlayerReceive = pEnergy.receiveEnergyPure(amount, true);
+                    if (canPlayerReceive > 0) {
+                        // 2. Витягуємо з резервуара рівно стільки, скільки влізе в гравця
+                        int actuallyExtracted = reservoir.extractTacionEnergy(canPlayerReceive, false);
+                        if (actuallyExtracted > 0) {
+                            pEnergy.receiveEnergyPure(actuallyExtracted, false);
+                            player.displayClientMessage(Component.translatable("message.tacionian.reservoir_extracted", actuallyExtracted)
+                                    .withStyle(ChatFormatting.GREEN), true);
+                            actionHappened = true;
+                        }
                     }
                 } else {
-                    int taken = pEnergy.extractEnergyPure(amount, false);
-                    if (taken > 0) {
-                        int added = reservoir.receiveTacionEnergy(taken, false);
-                        if (added < taken) {
-                            pEnergy.receiveEnergyPure(taken - added, false);
+                    // РЕЖИМ: Заливка з гравця в бак
+                    // 1. Питаємо бак, скільки він може прийняти (simulate: true)
+                    int canReservoirReceive = reservoir.receiveTacionEnergy(amount, true);
+                    if (canReservoirReceive > 0) {
+                        // 2. Витягуємо з гравця стільки, скільки бак готовий прийняти
+                        int actuallyTakenFromPlayer = pEnergy.extractEnergyPure(canReservoirReceive, false);
+                        if (actuallyTakenFromPlayer > 0) {
+                            reservoir.receiveTacionEnergy(actuallyTakenFromPlayer, false);
+                            player.displayClientMessage(Component.translatable("message.tacionian.reservoir_inserted", actuallyTakenFromPlayer)
+                                    .withStyle(ChatFormatting.RED), true);
+                            actionHappened = true;
                         }
-                        player.displayClientMessage(Component.literal("§c[>] Залито: " + added + " Tx"), true);
-                        actionHappened = true;
                     }
                 }
 
@@ -132,6 +138,4 @@ public class EnergyReservoirBlock extends BaseEntityBlock {
             super.onRemove(state, level, pos, newState, isMoving);
         }
     }
-
-
 }
